@@ -15,6 +15,7 @@ powerful, WiFi enabled microcontroller platform.
 * A DS18B20 temperature sensor: https://www.aliexpress.com/item/Free-Shipping-1pcs-DS18B20-Stainless-steel-package-1-meters-waterproof-DS18b20-temperature-probe-temperature-sensor-18B20/32305869288.html
 * OR https://www.aliexpress.com/item/Free-shipping-with-tracking-NO-10pcs-lot-DS18B20-TO-92/32510348570.html
 * A photoresistor: https://www.aliexpress.com/item/Free-shipping-with-tracking-NO-10pcs-lot-DS18B20-TO-92/32510348570.html
+* Soil moisture sensor: 
 * A red LED
 * A 150 ohm resistor
 * A 3.3k or 3.9k ohm resistor
@@ -22,6 +23,12 @@ powerful, WiFi enabled microcontroller platform.
 
 ## Instructions
 Download the Arduino IDE: https://www.arduino.cc/en/Main/Software
+
+Setup for programming the ESP8266 NodeMCU by following the instructions here:
+https://github.com/esp8266/Arduino
+
+Follow the instructions in the README.md file for **Installing with Boards Manager**
+
 
 ## Schematic
 
