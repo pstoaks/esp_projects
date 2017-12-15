@@ -25,5 +25,5 @@ Download the Arduino IDE: https://www.arduino.cc/en/Main/Software
 
 ## Schematic
 
-
+![Schematic](schematic.png)
 
