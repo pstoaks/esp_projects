@@ -71,6 +71,11 @@ compatible boards like the one I recommended above (settings not listed may be l
 * CPU Frequency: "80 MHz"
 * Upload Speed: "115200" <-- Feel free to experiment.
 
+This project requires a few Arduino libraries.  Libraries are installed using the Include Library
+menu under the Sketch menu.  Choose Manage Libraries, and install the following libraries:
+* DallasTemperature
+* Adafruit ADS1X15
+
 You can now download the web_server_kit (or write your own) sketch and load it onto the board.  The sketch is simply
 a program that utilizes the Arduino library.  It's source code that is compiled and linked into an image
 when you select Verify/Compile from the Sketch menu.  The Upload entry in the Sketch menu compiles
