@@ -149,7 +149,7 @@ of startup information is also sent to the USB port, which can be monitored on t
 the Arduino IDE.
 
 The device creates a WiFi network with an SSID (name) of Sens_AP.  You should be able to find and connect to this network
-using your computer or phone.  Once connected, type ***https://192.168.4.1/" into your browser and you 
+using your computer or phone.  Once connected, type ***https://192.168.4.1/*** into your browser and you 
 should see the device's webpage with information from each of the sensors and the status of the relays.
 
 If the values from the sensors do not appear to be changing, double-check the wiring for the data pins
