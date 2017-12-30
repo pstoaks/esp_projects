@@ -1,7 +1,6 @@
 # The Simple ESP8266 Sensor Server
 
 ## Overview
-Note: This is not yet complete.  I will be completing it in the coming week or so.
 
 This is a very simple ESP8266 Arduino sketch that is written for the NodeMCU
 and a few inexpensive, readily available sensors as an introduction to this
