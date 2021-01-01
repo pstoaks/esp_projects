@@ -72,8 +72,105 @@ class LightController(object):
             self.set_light(light, (red_value, green_value, blue_value))
         self.send_command()
 
-    
-        
+    def get_light(self, idx):
+        return self._pixel_object[idx]
+
+    def get_light_hsv(self, idx):
+        ''' Returns the given LED's settings in HSV '''
+
+        RGB = self._pixel_object[idx]
+        # Unpack the tuple for readability
+        R, G, B = RGB
+
+        # Compute the H value by finding the maximum of the RGB values
+        RGB_Max = max(RGB)
+        RGB_Min = min(RGB)
+
+        # Compute the value
+        V = RGB_Max;
+        if V == 0:
+            H = S = 0
+            return (H,S,V)
+
+        # Compute the saturation value
+        S = 255 * (RGB_Max - RGB_Min) // V
+
+        if S == 0:
+            H = 0
+            return (H, S, V)
+
+        # Compute the Hue
+        if RGB_Max == R:
+            H = 0 + 43*(G - B)//(RGB_Max - RGB_Min)
+            if H < 0:
+                H = H + 257
+        elif RGB_Max == G:
+            H = 85 + 43*(B - R)//(RGB_Max - RGB_Min)
+        else: # RGB_MAX == B
+            H = 171 + 43*(R - G)//(RGB_Max - RGB_Min)
+
+        print("RGB: ", RGB, " HSV: ", (H,S,V))
+        return (H, S, V)
+
+
+    def set_light_hsv(self, idx, HSV):
+        ''' Converts an integer HSV tuple (value range from 0 to 255) to an RGB tuple 
+            And sets the given LED to that value.
+        '''
+
+        # Unpack the HSV tuple for readability
+        H, S, V = HSV
+
+        # Check if the color is Grayscale
+        if S == 0:
+            R = V
+            G = V
+            B = V
+            self.set_light(idx, (R, G, B))
+            return
+
+        # Make hue 0-5
+        region = H // 43;
+
+        # Find remainder part, make it from 0-255
+        remainder = (H - (region * 43)) * 6; 
+
+        # Calculate temp vars, doing integer multiplication
+        P = (V * (255 - S)) >> 8;
+        Q = (V * (255 - ((S * remainder) >> 8))) >> 8;
+        T = (V * (255 - ((S * (255 - remainder)) >> 8))) >> 8;
+
+        # Assign temp vars based on color cone region
+        if region == 0:
+            R = V
+            G = T
+            B = P
+        elif region == 1:
+            R = Q; 
+            G = V; 
+            B = P;
+        elif region == 2:
+            R = P; 
+            G = V; 
+            B = T;
+        elif region == 3:
+            R = P; 
+            G = Q; 
+            B = V;
+        elif region == 4:
+            R = T; 
+            G = P; 
+            B = V;
+        else: 
+            R = V; 
+            G = P; 
+            B = Q;
+
+        print("HSV: ", HSV, " RGB: ", (R, G, B))
+        self.set_light(idx, (R, G, B))
+        return
+
+
     def create_sine(self, *args):
         # might be difficult to do without taylor series
         return
@@ -157,7 +254,15 @@ class LightController(object):
             time.sleep(step_time/1000)
             self.turn_off_all()
             self.random_color_set_brightness(brightness)
-            
+
+    def rainbow(self, saturation, brightness):
+        """ saturation and brightness are integers from 0 to 255. """
+        MAX_HUE = 256
+        increment = round(MAX_HUE/self.light_count)
+        for i in range(0, self.light_count):
+            self.set_light_hsv(i, (i*increment, saturation, brightness))
+        self.send_command()
+
             
             
 # controller = LightController(5, 64)

@@ -48,8 +48,17 @@ def C_to_F(t):
 def cnt_to_pct(cnt):
     return (cnt/4095) * 100.0
 
+
 lc = LightController(NEO_DATA_PIN, NUM_LEDS)
 temp = TempSensor(TEMP_DATA_PIN)
 ana = AnalogReader(ANA_INP_PIN)
+
+def test():
+    lc.rainbow(255, 80)
+
+    for i in range(0, NUM_LEDS):
+        lc.get_light_hsv(i)
+
+
 
 
