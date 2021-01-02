@@ -48,16 +48,101 @@ def C_to_F(t):
 def cnt_to_pct(cnt):
     return (cnt/4095) * 100.0
 
+#################################### Network Setup #################################
+
+def wifi_connect():
+    import network
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    if not wlan.isconnected():
+        print('connecting to network...')
+        wlan.connect(SSID, PASSWORD)
+        while not wlan.isconnected():
+            pass
+    print('network config:', wlan.ifconfig())
+
+#################################### HTTP Server #################################
+
+try:
+  import usocket as socket
+except:
+  import socket
+
+def web_page(on_off_state):
+    """ The file is opened and read each time so that it can be updated without
+        restarting the program.
+        Note tha the variable replacement is very crude and there is no error handling.
+        Better way to do it is to take a dictionary as an argument containing the variable
+        values in the template document, then replace each key with mustaches around it
+        (e.g. {{KEY_NAME}}) with the value from the dictionary.
+        Also take the template file name as a parameter.
+    """
+    if on_off_state:
+        gpio_state = "ON"
+    else:
+        gpio_state = "OFF"
+
+    html = ""
+    with open("home.html", "r") as fd:
+        html = fd.read()
+
+    return html.replace("{{GPIO_STATE}}", gpio_state)
+
+
+def send_http_response_header(conn):
+        conn.send('HTTP/1.1 200 OK\n')
+        conn.send('Content-Type: text/html\n')
+        conn.send('Connection: close\n\n')
+
+
+def start_server():
+    """ Never returns. If there is something you need to do in a loop, then
+        put it in the while loop for now. This should be re-factored
+        for any real work. Essentially, there wold be a dictionary of request
+        handlers with the correct handler getting called depending on the
+        request.
+    """
+    on_off_state = False
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(('', 80))  # Port 80 is the default HTTP server port.
+    s.listen(5)       # Maximum of 5 queued connections
+
+    on_off_state = False
+    while True:
+        conn, addr = s.accept()
+        print('Got a connection from %s' % str(addr))
+        request = conn.recv(1024)
+        request = str(request)
+        print('Content = %s' % request)
+        led_on = request.find('/?led=on')
+        led_off = request.find('/?led=off')
+        if led_on == 6:
+            print('LED ON')
+            on_off_state = True
+            lc.rainbow(255, 80)
+        if led_off == 6:
+            print('LED OFF')
+            on_off_state = False
+            lc.turn_off_all()
+            lc.send_command()
+        response = web_page(on_off_state)
+        send_http_response_header(conn)
+        conn.sendall(response)
+        conn.close()
+
+########################### Demo Code Below ####################################
 
 lc = LightController(NEO_DATA_PIN, NUM_LEDS)
 temp = TempSensor(TEMP_DATA_PIN)
 ana = AnalogReader(ANA_INP_PIN)
 
-def test():
-    lc.rainbow(255, 80)
+# Put your WiFi network credentials here.
+SSID = "NOT_MY_REAL_SSID"
+PASSWORD = "NOT_MY_REAL_WIFI_PASSWORD"
 
-    for i in range(0, NUM_LEDS):
-        lc.get_light_hsv(i)
+def test():
+    wifi_connect()
+    start_server()
 
 
 
