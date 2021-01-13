@@ -1,0 +1,7 @@
+TFT
+X, Multipurpose knob
+Y knob
+Direction toggle
+Spindle on/off toggle
+zero X or degrees (if in positioner mode.)
+zero Y
