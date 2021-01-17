@@ -1,12 +1,17 @@
 // Paul Stoaks 11/11/2020
-// This ESP32 sketch uses the ESP32 PWM to generate
+// This ESP32 sketch uses an ESP32 hardware timer to generate
 // a constant string of pulses to spin a stepper motor.
-// Encoder for input of RPM and direction, TFT display for output
+// Encoder for input of RPM and direction, TFT display for output.
 //
-// The timer code is based on the example in ESP-IDF 3.2.5, which I think
-// is the version that the 1.0.5-rc6 Arduino ISP32 board definition is using.
-// Note that this approach isn't really the "Arduino" approach so it may
-// not work well.
+// Also included is a PWM attempt using the ESP32 MCPWM module.
+// Unfortunately, I was not able to get smooth speed control.
+// This version has very smooth acceleration and pretty much
+// continuous speed control. The frequency of the pulses isn't
+// as accurate as it could be. This would require some tuning.
+//
+// This version works with Arduino ESP32 library 1.0.4.
+//
+// Note that WiFi is setup but not used yet.
 //
 
 #include "WiFi.h"
