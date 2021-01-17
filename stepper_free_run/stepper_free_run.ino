@@ -37,8 +37,8 @@
 //////////////////////////////////////////////
 // WiFi Setup
 /////////////////////////////////////////////
-static const char SSID[] = "SSW3";
-static const char PASSWD[] = "g0ne@gh0ti";
+static const char SSID[] = "SSID";
+static const char PASSWD[] = "PASSWD";
 // here we set the static IP address:
 static const IPAddress staticIp(192, 168, 0, 32);
 static const IPAddress gatewayIp(192, 168, 0, 1);
