@@ -4,9 +4,10 @@ import time
 import machine
 import onewire
 import ds18x20
-from light_controller import LightController
+# from light_controller import LightController
+from pixel_controller import PixelController
 
-NUM_LEDS = 64 # Number of LEDs in the strip
+NUM_LEDS = 472 # Number of LEDs in the strip
 NEO_DATA_PIN = 5  # Labeled G5 on board
 TEMP_DATA_PIN = 15 # Labeled G15
 ANA_INP_PIN = 34 # Labeled G34 on board
@@ -50,13 +51,13 @@ def cnt_to_pct(cnt):
 
 #################################### Network Setup #################################
 
-def wifi_connect():
+def wifi_connect(ssid, passwd):
     import network
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     if not wlan.isconnected():
         print('connecting to network...')
-        wlan.connect(SSID, PASSWORD)
+        wlan.connect(ssid, passwd)
         while not wlan.isconnected():
             pass
     print('network config:', wlan.ifconfig())
@@ -132,18 +133,24 @@ def start_server():
 
 ########################### Demo Code Below ####################################
 
-lc = LightController(NEO_DATA_PIN, NUM_LEDS)
+lc = PixelController(NEO_DATA_PIN, NUM_LEDS)
 temp = TempSensor(TEMP_DATA_PIN)
 ana = AnalogReader(ANA_INP_PIN)
 
-# Put your WiFi network credentials here.
-SSID = "NOT_MY_REAL_SSID"
-PASSWORD = "NOT_MY_REAL_WIFI_PASSWORD"
-
 def test():
-    wifi_connect()
+    # wifi_connect() -- Now done in boot.py
     start_server()
 
+BROWN = (20.0, 98.0, 5.0) # HSV (H degrees, S%, V%)
+FALL_RED = (0.0, 100.0, 20.0)
+ORANGE = (15.0, 100.0, 20.0)
+YELLOW = (40.0, 100.0, 20.0)
+YELLOW_GREEN = (42.0, 100.0, 50.0)
+GREEN = (123.0, 100.0, 50.0)
+FALL_SERIES = (BROWN, FALL_RED, ORANGE, YELLOW, ORANGE)
+
+lc.apply_series(FALL_SERIES)
+lc.set_brightness(0.50)
 
 
 

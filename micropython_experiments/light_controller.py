@@ -25,13 +25,8 @@ class LightController(object):
         for light in range(0, count):
             self.light_dict[light] = {"red": 0, "green": 0, "blue":0}
 
-    """Simple function for dimming lights
-
-    Args:
-        *args (one or more ints): Dim each of these lights
-    """
     def send_command(self):
-        self._pixel_object.write();
+        self._pixel_object.write()
     
     def set_light(self, light_index, rgb_val):
         if light_index < 0:
@@ -41,6 +36,11 @@ class LightController(object):
         self.light_dict[light_index]["green"] = rgb_val[1]
         self.light_dict[light_index]["blue"] = rgb_val[2]
         
+    """Simple function for dimming lights
+
+    Args:
+        *args (one or more ints): Dim each of these lights
+    """
     def dim_lights(self, dim_value, *args):
         for light in args:
             color_vals = self.light_dict[light]
@@ -60,9 +60,9 @@ class LightController(object):
         """ Scales the intensity by scale """
         for light in args:
             color_vals = self.light_dict[light]
-            red_value = int(color_vals["red"] * scale)
-            green_value = int(color_vals["green"] * scale)
-            blue_value = int(color_vals["blue"] * scale)
+            red_value = round(color_vals["red"] * scale)
+            green_value = round(color_vals["green"] * scale)
+            blue_value = round(color_vals["blue"] * scale)
             if red_value < 0:
                 red_value = 0
             if blue_value < 0:
@@ -87,7 +87,7 @@ class LightController(object):
         RGB_Min = min(RGB)
 
         # Compute the value
-        V = RGB_Max;
+        V = RGB_Max
         if V == 0:
             H = S = 0
             return (H,S,V)
@@ -109,7 +109,7 @@ class LightController(object):
         else: # RGB_MAX == B
             H = 171 + 43*(R - G)//(RGB_Max - RGB_Min)
 
-        print("RGB: ", RGB, " HSV: ", (H,S,V))
+        # print("RGB: ", RGB, " HSV: ", (H,S,V))
         return (H, S, V)
 
 
@@ -130,15 +130,15 @@ class LightController(object):
             return
 
         # Make hue 0-5
-        region = H // 43;
+        region = H // 43
 
         # Find remainder part, make it from 0-255
-        remainder = (H - (region * 43)) * 6; 
+        remainder = (H - (region * 43)) * 6 
 
         # Calculate temp vars, doing integer multiplication
-        P = (V * (255 - S)) >> 8;
-        Q = (V * (255 - ((S * remainder) >> 8))) >> 8;
-        T = (V * (255 - ((S * (255 - remainder)) >> 8))) >> 8;
+        P = (V * (255 - S)) >> 8
+        Q = (V * (255 - ((S * remainder) >> 8))) >> 8
+        T = (V * (255 - ((S * (255 - remainder)) >> 8))) >> 8
 
         # Assign temp vars based on color cone region
         if region == 0:
@@ -146,27 +146,27 @@ class LightController(object):
             G = T
             B = P
         elif region == 1:
-            R = Q; 
-            G = V; 
-            B = P;
+            R = Q
+            G = V 
+            B = P
         elif region == 2:
-            R = P; 
-            G = V; 
-            B = T;
+            R = P 
+            G = V 
+            B = T
         elif region == 3:
-            R = P; 
-            G = Q; 
-            B = V;
+            R = P 
+            G = Q 
+            B = V
         elif region == 4:
-            R = T; 
-            G = P; 
-            B = V;
+            R = T 
+            G = P 
+            B = V
         else: 
-            R = V; 
-            G = P; 
-            B = Q;
+            R = V 
+            G = P 
+            B = Q
 
-        print("HSV: ", HSV, " RGB: ", (R, G, B))
+        # print("HSV: ", HSV, " RGB: ", (R, G, B))
         self.set_light(idx, (R, G, B))
         return
 
