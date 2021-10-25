@@ -4,10 +4,12 @@ import time
 import machine
 import onewire
 import ds18x20
+
 # from light_controller import LightController
 from pixel_controller import PixelController
 
-NUM_LEDS = 472 # Number of LEDs in the strip
+# NUM_LEDS = 472 # Number of LEDs in the strip
+NUM_LEDS = 86
 NEO_DATA_PIN = 5  # Labeled G5 on board
 TEMP_DATA_PIN = 15 # Labeled G15
 ANA_INP_PIN = 34 # Labeled G34 on board
@@ -72,7 +74,7 @@ except:
 def web_page(on_off_state):
     """ The file is opened and read each time so that it can be updated without
         restarting the program.
-        Note tha the variable replacement is very crude and there is no error handling.
+        Note that the variable replacement is very crude and there is no error handling.
         Better way to do it is to take a dictionary as an argument containing the variable
         values in the template document, then replace each key with mustaches around it
         (e.g. {{KEY_NAME}}) with the value from the dictionary.
@@ -102,6 +104,10 @@ def start_server():
         for any real work. Essentially, there wold be a dictionary of request
         handlers with the correct handler getting called depending on the
         request.
+
+        Requests:
+           /?bright=120   Set brightness to 120%
+           /?series=fall  Set series to fall
     """
     on_off_state = False
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -115,21 +121,58 @@ def start_server():
         request = conn.recv(1024)
         request = str(request)
         print('Content = %s' % request)
-        led_on = request.find('/?led=on')
-        led_off = request.find('/?led=off')
-        if led_on == 6:
-            print('LED ON')
-            on_off_state = True
-            lc.rainbow(255, 80)
-        if led_off == 6:
-            print('LED OFF')
-            on_off_state = False
-            lc.turn_off_all()
-            lc.send_command()
-        response = web_page(on_off_state)
+        response = ""
+        if len(request) > 1:
+            req = get_req_from_response(request)
+            path = req['path']
+            if path in SERVER_PATHS:
+                response = SERVER_PATHS[path](req['query'])
+            else:
+                response = SERVER_PATHS['/']("")
         send_http_response_header(conn)
         conn.sendall(response)
         conn.close()
+        time.sleep(0.3)
+
+
+def get_req_from_response(response):
+    req = response.split("\r\n")[0].split()[1].split("?")
+    path = req[0]
+    query = parse_query(req[1])
+    return {"path": path, "query": query}
+    
+    
+def parse_query(query):
+    rtn = {}
+    if query:
+        sq = query.split('&')
+        for x in sq:
+            y = x.split('=')
+            if len(y) == 2:
+                rtn[y[0]] = y[1]
+    return rtn
+
+
+############### Server Methods ######################
+def set_leds(query):
+    for (fn, param) in query.items():
+        if fn in SET_LEDS:
+            SET_LEDS[fn](param)
+    return web_page(1) # Temporary
+
+
+def home_page(query):
+    return web_page(1) # Temporary
+            
+
+def set_brightness(brightness_pct):
+    lc.set_brightness(int(brightness_pct)/100.0)
+    
+
+def set_series(series_name):
+    if series_name in COLOR_SERIES:
+        lc.apply_series(COLOR_SERIES[series_name])
+        
 
 ########################### Demo Code Below ####################################
 
@@ -137,20 +180,42 @@ lc = PixelController(NEO_DATA_PIN, NUM_LEDS)
 temp = TempSensor(TEMP_DATA_PIN)
 ana = AnalogReader(ANA_INP_PIN)
 
-def test():
-    # wifi_connect() -- Now done in boot.py
-    start_server()
 
 BROWN = (20.0, 98.0, 5.0) # HSV (H degrees, S%, V%)
+RED = (0.0, 100.0, 50.0)
 FALL_RED = (0.0, 100.0, 20.0)
 ORANGE = (15.0, 100.0, 20.0)
-YELLOW = (40.0, 100.0, 20.0)
-YELLOW_GREEN = (42.0, 100.0, 50.0)
-GREEN = (123.0, 100.0, 50.0)
-FALL_SERIES = (BROWN, FALL_RED, ORANGE, YELLOW, ORANGE)
+YELLOW = (40.0, 100.0, 30.0)
+YELLOW_GREEN = (86.0, 100.0, 50.0)
+GREEN = (120.0, 100.0, 50.0)
+DK_GREEN = (128.0, 100.0, 20.0)
+WHITE = (0.0, 0.0, 80.0)
+BLUE = (250.0, 100.0, 60.0)
+LT_BLUE = (250.0, 80, 80.0)
 
-lc.apply_series(FALL_SERIES)
-lc.set_brightness(0.50)
+COLOR_SERIES = {
+    "fall": (BROWN, FALL_RED, ORANGE, YELLOW, ORANGE),
+    "christmas": (GREEN, GREEN, RED, RED, WHITE),
+    "winter": (WHITE, WHITE, BLUE, BLUE, LT_BLUE),
+    "spring": (YELLOW, YELLOW_GREEN, GREEN, DK_GREEN, YELLOW_GREEN),
+    "white": (WHITE, LT_BLUE)
+}
 
+SERVER_PATHS = {
+    "/leds": set_leds,
+    "/": home_page
+}
+
+SET_LEDS = {
+    "bright": set_brightness,
+    "series": set_series
+}
+
+# Set defaults
+set_series("fall")
+set_brightness("50")
+
+# Start the server
+# start_server()
 
 
