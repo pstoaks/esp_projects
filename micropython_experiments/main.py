@@ -1,18 +1,39 @@
 # This file is executed on every boot (including wake-boot from deepsleep)
+# https://docs.micropython.org/en/v1.15/library/uos.html
+# uasyncio tutorial: https://github.com/peterhinch/micropython-async/blob/master/v3/docs/TUTORIAL.md
+#
+# TODO:
+#    twinkle - This will require another COR, right?
+#    Add file access handling for .HTML, .CSS, .JS, etc. Perhaps check for file if path is
+#       not found? Or add a /file path that checks for file after. Would require some
+#       changes to path parsing to make this work. /mypath/foo.css, only look for the 'mypath'
+#       in ServerPaths and then pass the path on to the handler.
+#    Learn ASYNCIO
+#    Implement a more complete web page?
+#    Integrate with home controller
+#
+# SERVER PATHS
+#  http://192.168.0.122/leds?bright=10  Set brightness
+#  http://192.168.0.122/leds?bright=20&series=winter  Set brightness and color series
+#  http://192.168.0.122/exit  Exit server to that we can use REPL or WebREPL
+#  
 import random
 import time
 import machine
 import onewire
 import ds18x20
+import http_server as Server
+import config as Config
 
 # from light_controller import LightController
 from pixel_controller import PixelController
 
-# NUM_LEDS = 472 # Number of LEDs in the strip
+# NUM_LEDS = 472 # Number of LEDs in the strip in the family room.
 NUM_LEDS = 86
 NEO_DATA_PIN = 5  # Labeled G5 on board
 TEMP_DATA_PIN = 15 # Labeled G15
 ANA_INP_PIN = 34 # Labeled G34 on board
+CONFIG_FILE_NAME = "led_config.json"
 
 
 class TempSensor(object):
@@ -61,15 +82,10 @@ def wifi_connect(ssid, passwd):
         print('connecting to network...')
         wlan.connect(ssid, passwd)
         while not wlan.isconnected():
-            pass
+            time.sleep(0.3)
     print('network config:', wlan.ifconfig())
 
 #################################### HTTP Server #################################
-
-try:
-  import usocket as socket
-except:
-  import socket
 
 def web_page(on_off_state):
     """ The file is opened and read each time so that it can be updated without
@@ -92,91 +108,62 @@ def web_page(on_off_state):
     return html.replace("{{GPIO_STATE}}", gpio_state)
 
 
-def send_http_response_header(conn):
-        conn.send('HTTP/1.1 200 OK\n')
-        conn.send('Content-Type: text/html\n')
-        conn.send('Connection: close\n\n')
-
-
-def start_server():
-    """ Never returns. If there is something you need to do in a loop, then
-        put it in the while loop for now. This should be re-factored
-        for any real work. Essentially, there wold be a dictionary of request
-        handlers with the correct handler getting called depending on the
-        request.
-
-        Requests:
-           /?bright=120   Set brightness to 120%
-           /?series=fall  Set series to fall
-    """
-    on_off_state = False
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(('', 80))  # Port 80 is the default HTTP server port.
-    s.listen(5)       # Maximum of 5 queued connections
-
-    on_off_state = False
-    while True:
-        conn, addr = s.accept()
-        print('Got a connection from %s' % str(addr))
-        request = conn.recv(1024)
-        request = str(request)
-        print('Content = %s' % request)
-        response = ""
-        if len(request) > 1:
-            req = get_req_from_response(request)
-            path = req['path']
-            if path in SERVER_PATHS:
-                response = SERVER_PATHS[path](req['query'])
-            else:
-                response = SERVER_PATHS['/']("")
-        send_http_response_header(conn)
-        conn.sendall(response)
-        conn.close()
-        time.sleep(0.3)
-
-
-def get_req_from_response(response):
-    req = response.split("\r\n")[0].split()[1].split("?")
-    path = req[0]
-    query = parse_query(req[1])
-    return {"path": path, "query": query}
-    
-    
-def parse_query(query):
-    rtn = {}
-    if query:
-        sq = query.split('&')
-        for x in sq:
-            y = x.split('=')
-            if len(y) == 2:
-                rtn[y[0]] = y[1]
-    return rtn
-
-
 ############### Server Methods ######################
+
 def set_leds(query):
     for (fn, param) in query.items():
         if fn in SET_LEDS:
             SET_LEDS[fn](param)
+
+    # apply any changes
+    apply_config(current_config)
+    Config.save(current_config, CONFIG_FILE_NAME)
+
     return web_page(1) # Temporary
+
+def set_brightness(brightness_pct):
+    current_config['bright'] = int(brightness_pct)
+    
+def set_series(series_name):
+    if series_name in current_config['color_series']:
+        current_config['series'] = series_name
+
+SET_LEDS = {
+    "bright": set_brightness,
+    "series": set_series
+}
 
 
 def home_page(query):
     return web_page(1) # Temporary
             
 
-def set_brightness(brightness_pct):
-    lc.set_brightness(int(brightness_pct)/100.0)
-    
+def return_file(file_path):
+    # Not really implemented yet. The file_path argument is really a query...
+    await Server.send_file(file_path)
 
-def set_series(series_name):
-    if series_name in COLOR_SERIES:
-        lc.apply_series(COLOR_SERIES[series_name])
-        
+
+def exit_server(param):
+    raise Exception("Terminated by HTTP Server.")
+    return ""
+
+
+SERVER_PATHS = {
+    "/leds": set_leds,
+    "/file": return_file,
+    "/exit": exit_server,
+    "/": home_page
+}
+
+def apply_config(config):
+    series_name = current_config['series']
+    if series_name in current_config['color_series']:
+        lc.apply_series(current_config['color_series'][series_name])
+    lc.set_brightness(current_config['bright']/100.0)
+
 
 ########################### Demo Code Below ####################################
 
-lc = PixelController(NEO_DATA_PIN, NUM_LEDS)
 temp = TempSensor(TEMP_DATA_PIN)
 ana = AnalogReader(ANA_INP_PIN)
 
@@ -195,27 +182,59 @@ LT_BLUE = (250.0, 80, 80.0)
 
 COLOR_SERIES = {
     "fall": (BROWN, FALL_RED, ORANGE, YELLOW, ORANGE),
-    "christmas": (GREEN, GREEN, RED, RED, WHITE),
+    "christmas1": (GREEN, GREEN, RED, RED, WHITE),
+    "christmas2": (GREEN, GREEN, GREEN, RED, RED, RED),
     "winter": (WHITE, WHITE, BLUE, BLUE, LT_BLUE),
     "spring": (YELLOW, YELLOW_GREEN, GREEN, DK_GREEN, YELLOW_GREEN),
     "white": (WHITE, LT_BLUE)
 }
 
-SERVER_PATHS = {
-    "/leds": set_leds,
-    "/": home_page
+DEFAULT_CONFIG = {
+    "bright": 30,
+    "series": "fall",
+    "num_leds": 86,
+    "color_series": COLOR_SERIES
 }
 
-SET_LEDS = {
-    "bright": set_brightness,
-    "series": set_series
-}
+current_config = DEFAULT_CONFIG;
 
-# Set defaults
-set_series("fall")
-set_brightness("50")
+def convert_series_lists_to_tuples(color_series):
+    """ The JSON module turns tuples into JSON arrays which
+        become python lists. We have to convert the series back
+        to tuples.
+    """
+    for name, series in color_series.items():
+        tuple_list = list()
+        for color in series:
+            tuple_list.append(tuple(color))
+        color_series[name] = tuple(tuple_list)
 
-# Start the server
-# start_server()
+
+# Load configuration file
+if Server.exists(CONFIG_FILE_NAME):
+    print("Loading config file '{}'.".format(CONFIG_FILE_NAME))
+    current_config = Config.load(CONFIG_FILE_NAME)
+    # Convert lists to tuples
+    convert_series_lists_to_tuples(current_config['color_series'])
+else:
+    print("Creating config file first time.")
+    Config.save(current_config, CONFIG_FILE_NAME)
+
+# The number of LEDs in the string is now in the configuration file,
+# so we wait to initialize the LED controller until we have that info
+lc = PixelController(NEO_DATA_PIN, current_config['num_leds'])
+
+apply_config(current_config)
 
 
+# Start WiFi and the server
+
+wifi_connect(WIFI_SSID, WIFI_PASSWD)
+
+import webrepl
+webrepl.start()
+
+# WebREPL daemon started on ws://192.168.0.119:8266
+
+# Start the http server
+Server.start(SERVER_PATHS)
