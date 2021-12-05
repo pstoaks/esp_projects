@@ -3,13 +3,13 @@
 # uasyncio tutorial: https://github.com/peterhinch/micropython-async/blob/master/v3/docs/TUTORIAL.md
 #
 # TODO:
-#    twinkle - This will require another COR, right?
+#    twinkle, march - This will require another COR, right?
 #    Add file access handling for .HTML, .CSS, .JS, etc. Perhaps check for file if path is
 #       not found? Or add a /file path that checks for file after. Would require some
 #       changes to path parsing to make this work. /mypath/foo.css, only look for the 'mypath'
 #       in ServerPaths and then pass the path on to the handler.
 #    Learn ASYNCIO
-#    Implement a more complete web page?
+#    Add brightness up/down buttons
 #    Integrate with home controller
 #
 # SERVER PATHS
@@ -87,7 +87,7 @@ def wifi_connect(ssid, passwd):
 
 #################################### HTTP Server #################################
 
-def web_page(on_off_state):
+def web_page(config):
     """ The file is opened and read each time so that it can be updated without
         restarting the program.
         Note that the variable replacement is very crude and there is no error handling.
@@ -96,35 +96,53 @@ def web_page(on_off_state):
         (e.g. {{KEY_NAME}}) with the value from the dictionary.
         Also take the template file name as a parameter.
     """
-    if on_off_state:
-        gpio_state = "ON"
-    else:
-        gpio_state = "OFF"
 
     html = ""
     with open("home.html", "r") as fd:
         html = fd.read()
 
-    return html.replace("{{GPIO_STATE}}", gpio_state)
+    tmplt = '<div class="series_button"><a href="leds?series={SERIES_NAME}"><button class="button {SELECT}">{SERIES_NAME}</button></a></div>'
+
+    series_buttons = ""
+    for (series,val) in config['color_series'].items():
+        select = "SELECTED"if config['series'] == series else "NOT_SELECTED"
+        series_buttons = series_buttons + tmplt.format(SERIES_NAME=series, SELECT=select)
+
+    return html.format(
+        BRIGHT=config['bright'],
+        SERIES=config['series'],
+        NUM_LEDS=config['num_leds'],
+        SERIES_BUTTONS=series_buttons
+        )
 
 
 ############### Server Methods ######################
 
 def set_leds(query):
+    global current_config
+    tmp_config = current_config.copy() # Save a copy so that we can detect changes.
+    
     for (fn, param) in query.items():
         if fn in SET_LEDS:
             SET_LEDS[fn](param)
 
     # apply any changes
-    apply_config(current_config)
-    Config.save(current_config, CONFIG_FILE_NAME)
+    if current_config != tmp_config:
+        print("Saving modified configuration.", current_config)
+        apply_config(current_config)
+        Config.save(current_config, CONFIG_FILE_NAME)
+    else:
+        print("Configuration unmodified by request.")
 
-    return web_page(1) # Temporary
+    return web_page(current_config) # Temporary
+
 
 def set_brightness(brightness_pct):
+    global current_config
     current_config['bright'] = int(brightness_pct)
     
 def set_series(series_name):
+    global current_config
     if series_name in current_config['color_series']:
         current_config['series'] = series_name
 
@@ -134,8 +152,12 @@ SET_LEDS = {
 }
 
 
+def get_config(dummy):
+    global current_config
+    return Config.web_return(current_config)
+
 def home_page(query):
-    return web_page(1) # Temporary
+    return web_page(current_config)
             
 
 def return_file(file_path):
@@ -150,6 +172,7 @@ def exit_server(param):
 
 SERVER_PATHS = {
     "/leds": set_leds,
+    "/config": get_config,
     "/file": return_file,
     "/exit": exit_server,
     "/": home_page
@@ -164,8 +187,8 @@ def apply_config(config):
 
 ########################### Demo Code Below ####################################
 
-temp = TempSensor(TEMP_DATA_PIN)
-ana = AnalogReader(ANA_INP_PIN)
+# temp = TempSensor(TEMP_DATA_PIN)
+# ana = AnalogReader(ANA_INP_PIN)
 
 
 BROWN = (20.0, 98.0, 5.0) # HSV (H degrees, S%, V%)
@@ -177,13 +200,16 @@ YELLOW_GREEN = (86.0, 100.0, 50.0)
 GREEN = (120.0, 100.0, 50.0)
 DK_GREEN = (128.0, 100.0, 20.0)
 WHITE = (0.0, 0.0, 80.0)
-BLUE = (250.0, 100.0, 60.0)
-LT_BLUE = (250.0, 80, 80.0)
+BLUE = (240.0, 100.0, 40.0)
+LT_BLUE = (230.0, 80, 80.0)
+PURPLE = (270.0, 80, 40.0)
 
 COLOR_SERIES = {
     "fall": (BROWN, FALL_RED, ORANGE, YELLOW, ORANGE),
     "christmas1": (GREEN, GREEN, RED, RED, WHITE),
     "christmas2": (GREEN, GREEN, GREEN, RED, RED, RED),
+    "multicolor": (GREEN, RED, BLUE, YELLOW, DK_GREEN, WHITE, ORANGE, PURPLE),
+    "multicolor2": (GREEN, RED, BLUE),
     "winter": (WHITE, WHITE, BLUE, BLUE, LT_BLUE),
     "spring": (YELLOW, YELLOW_GREEN, GREEN, DK_GREEN, YELLOW_GREEN),
     "white": (WHITE, LT_BLUE)
@@ -216,6 +242,11 @@ if Server.exists(CONFIG_FILE_NAME):
     current_config = Config.load(CONFIG_FILE_NAME)
     # Convert lists to tuples
     convert_series_lists_to_tuples(current_config['color_series'])
+    # Update the series, if necessary
+    if current_config['color_series'] != COLOR_SERIES:
+        # Update the color series definitions on disk
+        current_config['color_series'] = COLOR_SERIES
+        Config.save(current_config, CONFIG_FILE_NAME)
 else:
     print("Creating config file first time.")
     Config.save(current_config, CONFIG_FILE_NAME)

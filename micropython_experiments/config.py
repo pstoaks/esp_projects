@@ -8,3 +8,5 @@ def save(config, fname):
     with open(fname, 'w') as fp:
         json.dump(config, fp)
 
+def web_return(config):
+    return json.dumps(config)

@@ -9,7 +9,9 @@
 
 import uasyncio as asyncio
 import uos
+import sys
 # import pkg_resources
+import gc
 
 ServerPaths = {}  # This global is set by the start() function
 
@@ -111,8 +113,11 @@ async def serve(reader, writer):
                 await writer.awrite(response)
             else:
                 await send_url_not_found(writer)
-    except:
+        gc.collect()
+    except Exception as e:
         print("Exception in serve()")
+        import sys
+        sys.print_exception(e)
         asyncio.get_event_loop().stop()
         raise
     finally:
