@@ -15,7 +15,11 @@ static const unsigned ENC1_Q2 = 25;
 //
 // User Setup comes from; TFT_eSPI/User_Setups/User_Setup.h
 #include <lvgl.h>
+#ifdef ESPI
 #include <TFT_eSPI.h>
+#else
+#include "lovyan_gfx_setup.h"
+#endif
 #include <SD.h>
 #include <FS.h>
 
@@ -24,15 +28,22 @@ static const unsigned ENC1_Q2 = 25;
 // User_Setup.h
 ////////////////////////////////////////
 
-static const int LEFT_MARGIN = 6;
-static const int TOP_MARGIN = 18;
+#ifdef ESPI
+TFT_eSPI tft;
 static const int SCREEN_WIDTH = TFT_HEIGHT;
 static const int SCREEN_HEIGHT = TFT_WIDTH;
+#else
+LGFX tft;
+static const unsigned TOUCH_CS = 22U;
+static const unsigned TFT_CS = 15U;
+static const int SCREEN_WIDTH = TFT_WIDTH;
+static const int SCREEN_HEIGHT = TFT_HEIGHT;
+#endif
+
+
 static const unsigned TFT_BACKLIGHT = 5U;
 static const unsigned SD_CS = 13U;
 static uint16_t TOUCH_CAL_DATA[5] = { 275, 3620, 264, 3532, 1 };
-
-TFT_eSPI tft = TFT_eSPI();
 
 // LVGL Stuff
 static lv_disp_draw_buf_t draw_buf;
@@ -135,7 +146,8 @@ static void setSetLabel(String val)
   lv_label_set_text( setLabel, val.c_str() );
 } // setSetLabel()
 
-void setup() {
+void setup() 
+{
   Serial.begin(115200);
   pinMode(LED_BUILTIN, OUTPUT);
 
@@ -160,20 +172,20 @@ void setup() {
 
   Serial.println("TFT pins have been setup");
 
-  tft.init();
-  tft.setRotation(3);
-  tft.fillScreen(TFT_BLACK);            // Clear screen
-
-  tft.setFreeFont(&FreeSans18pt7b);        // Select the font
-  tft.setTextColor(TFT_YELLOW, TFT_BLACK); // Yellow over black
+  tft.begin();
+  tft.setRotation(1);
+  tft.setBrightness(100); // 0 - 255?
+#ifdef ESPI
+  ft.setTouch( TOUCH_CAL_DATA );
+#else
+  tft.setTouchCalibrate( TOUCH_CAL_DATA );
+#endif
 
   String LVGL_Arduino = String("LVGL Version: V") + lv_version_major() + "." + lv_version_minor() + "." + lv_version_patch();
 
   Serial.println( LVGL_Arduino );
 
   lv_init();
-  tft.setTouch( TOUCH_CAL_DATA );
-
   lv_disp_draw_buf_init( &draw_buf, buf, NULL, SCREEN_WIDTH * 10 );
 
   // Initialize the display
@@ -231,8 +243,20 @@ void setup() {
   tempLabel = lv_label_create( lv_scr_act() );
   setLabel = lv_label_create( lv_scr_act() );
 
-  lv_obj_align( tempLabel, LV_ALIGN_CENTER, 0, -10 );
-  lv_obj_align( setLabel, LV_ALIGN_CENTER, 0, 10 );
+  static lv_style_t style_center_area;
+  lv_style_init(&style_center_area);
+  lv_style_set_bg_color(&style_center_area, lv_color_hex(0x000070));
+  lv_style_set_text_color(&style_center_area, lv_color_hex(0x00A0A0));
+  lv_style_set_text_align(&style_center_area, LV_TEXT_ALIGN_CENTER);
+
+  lv_style_set_text_font(&style_center_area, &lv_font_montserrat_28);
+  // lv_style_set_bg_opa(&style_center_area, LV_OPA_50);
+  // lv_style_set_border_width(&style_center_area, 2);
+  // lv_style_set_border_color(&style_center_area, lv_color_black());
+
+  lv_obj_align( tempLabel, LV_ALIGN_CENTER, 0, -120 );
+  lv_obj_add_style(tempLabel, &style_center_area, LV_PART_MAIN);
+  lv_obj_align( setLabel, LV_ALIGN_CENTER, 0, -80 );
 
   setTempLabel("0.0");
   setSetLabel("000");
@@ -295,7 +319,7 @@ void loop() {
       Serial.print(F("°F  Heat index: "));
       Serial.print(hif);
       Serial.println(F("°F"));
-      setTempLabel(String(f));
+      setTempLabel(String(f) + "°F  " + String(h) + "%");
     }
   }
 
@@ -340,7 +364,7 @@ void my_disp_flush( lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *colo
 
     tft.startWrite();
     tft.setAddrWindow( area->x1, area->y1, w, h );
-    tft.pushColors( ( uint16_t * )&color_p->full, w * h, true );
+    tft.pushPixels( ( uint16_t * )&color_p->full, w * h, true );
     tft.endWrite();
 
     lv_disp_flush_ready( disp );
@@ -365,10 +389,6 @@ void my_touchpad_read( lv_indev_drv_t * indev_driver, lv_indev_data_t * data )
         data->point.x = touchX;
         data->point.y = touchY;
 
-        Serial.print( "Data x " );
-        Serial.println( touchX );
-
-        Serial.print( "Data y " );
-        Serial.println( touchY );
+        Serial.printf( "Touch (%d, %d)\n", touchX, touchY );
     }
 } // my_touchpad_read()
