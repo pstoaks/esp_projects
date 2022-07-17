@@ -9,7 +9,7 @@ round_radius = 0.0; // 2.0 The radius of rounded edges
 PCB_DEF = [70 * mm, 50.0 * mm, 1.6 * mm];
 
 display_win_width = 59.0 * mm;
-display_win_left_offset = 19.0 * mm; // from left edge of PCB
+display_win_left_offset = 19.0 * mm-2; // from left edge of PCB
 display_thickness = 5.8 * mm;
 function display_translation(width, depth, wall_thick, display_y) = 
    [(width - display_win_width)/2.0 - display_win_left_offset, 
@@ -28,10 +28,10 @@ knob_dia = 40.0 * mm;
 knob_depth = 19.0 * mm;
 
 
-// assembly(knob_dia, knob_depth);
+assembly(knob_dia, knob_depth);
 // top_shell();
 // shaft_attach(10.0 * mm, 10.0);
-knob(knob_dia, knob_depth);
+// knob(knob_dia, knob_depth);
 // display();
 // PIR_sensor();
 // DHT22();
@@ -447,7 +447,7 @@ module display()
    pcb_thick = 1.5 * mm;
    pcb_height = 50.0 * mm;
 
-   display_left_offset = 9.0 * mm; // from left edge of PCB
+   display_left_offset = 9.0 * mm-2; // from left edge of PCB
    display_thick = 5.8 * mm - pcb_thick;
    display_gross_width = 70.0 * mm;
    display_gross_height = pcb_height;
