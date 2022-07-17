@@ -266,8 +266,9 @@ void setup()
   }
   Serial.println("Connected to Network");
   Serial.println(String("IP Address: ") + WiFi.localIP());
-   
-  configTime(-8*3600, 0, ntpServer);
+  #define DST_OFFSET 3600
+  #define PST_OFFSET -8*3600
+  configTime(PST_OFFSET, DST_OFFSET, ntpServer);
 
   // Initialize GUI
   // Create simple label
