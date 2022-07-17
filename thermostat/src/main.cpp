@@ -1,4 +1,7 @@
 #include <Arduino.h>
+#include "esp_sntp.h"
+
+#include <WiFi.h>
 
 ////////////////////////////////////////////////
 // Encoder
@@ -134,6 +137,7 @@ static String card_type(uint8_t cardType)
 } // card_type()
 
 // Temporary GUI stuff
+lv_obj_t *timeLabel = nullptr;
 lv_obj_t *tempLabel = nullptr;
 lv_obj_t *setLabel = nullptr;
 static void setTempLabel(String val)
@@ -145,6 +149,22 @@ static void setSetLabel(String val)
 {
   lv_label_set_text( setLabel, val.c_str() );
 } // setSetLabel()
+
+static void setTimeLabel(String val)
+{
+  lv_label_set_text( timeLabel, val.c_str() );
+} // setSetLabel()
+
+static void updateTimeField();
+
+
+// WiFi and NTP setup
+// credentials.h contains only two lines:
+// const char* SSID = "yourNetworkName";
+// const char* WPA_PASSWD =  "yourNetworkPass
+#include "credentials.h"
+// const char* ntpServer = "time.google.com";
+const char* ntpServer = "pool.ntp.org";
 
 void setup() 
 {
@@ -236,31 +256,50 @@ void setup()
 
   Serial.println("SD has been setup");
 
-  initialize_wdt(500, &wdt_ISR); // 500 msec
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(SSID, WPA_PASSWD);
+   
+  while ( WiFi.status() != WL_CONNECTED )
+  {
+    delay(500);
+    Serial.println("Connecting...");
+  }
+  Serial.println("Connected to Network");
+  Serial.println(String("IP Address: ") + WiFi.localIP());
+   
+  configTime(-8*3600, 0, ntpServer);
 
   // Initialize GUI
   // Create simple label
+  timeLabel = lv_label_create( lv_scr_act() );
   tempLabel = lv_label_create( lv_scr_act() );
   setLabel = lv_label_create( lv_scr_act() );
 
   static lv_style_t style_center_area;
   lv_style_init(&style_center_area);
   lv_style_set_bg_color(&style_center_area, lv_color_hex(0x000070));
-  lv_style_set_text_color(&style_center_area, lv_color_hex(0x00A0A0));
+  lv_style_set_text_color(&style_center_area, lv_color_hex(0x00FFFF));
   lv_style_set_text_align(&style_center_area, LV_TEXT_ALIGN_CENTER);
 
   lv_style_set_text_font(&style_center_area, &lv_font_montserrat_28);
-  // lv_style_set_bg_opa(&style_center_area, LV_OPA_50);
-  // lv_style_set_border_width(&style_center_area, 2);
-  // lv_style_set_border_color(&style_center_area, lv_color_black());
+  lv_style_set_bg_opa(&style_center_area, LV_OPA_100);
+  lv_style_set_border_width(&style_center_area, 1);
+  lv_style_set_border_color(&style_center_area, lv_color_black());
 
-  lv_obj_align( tempLabel, LV_ALIGN_CENTER, 0, -120 );
+  lv_obj_align( timeLabel, LV_ALIGN_TOP_MID, 0, 78 );
+  lv_obj_add_style(timeLabel, &style_center_area, LV_PART_MAIN);
+  lv_obj_align( tempLabel, LV_ALIGN_TOP_MID, 0, 110 );
   lv_obj_add_style(tempLabel, &style_center_area, LV_PART_MAIN);
-  lv_obj_align( setLabel, LV_ALIGN_CENTER, 0, -80 );
+  lv_obj_align( setLabel, LV_ALIGN_TOP_MID, 0, 150 );
 
+  setTimeLabel("01/01/01 00:00:00");
   setTempLabel("0.0");
   setSetLabel("000");
-} // setup()
+
+  // This has to be the last thing in setup()!
+  initialize_wdt(500, &wdt_ISR); // 500 msec
+
+  } // setup()
 
 void loop() {
   static unsigned loop_cntr = 0;
@@ -348,6 +387,18 @@ void loop() {
     Serial.println("Light: " + String(light_level));
   }
 
+  static bool synch_completed = false;
+
+  if ( synch_completed && ( loop_cntr % (800/DELAY) == 0 ) )
+  {
+    updateTimeField();
+  }
+  else
+  {
+    if ( sntp_get_sync_status() == SNTP_SYNC_STATUS_COMPLETED )
+      synch_completed = true;
+  }
+
   loop_cntr++;
 
   // Let the GUI do it's work
@@ -392,3 +443,23 @@ void my_touchpad_read( lv_indev_drv_t * indev_driver, lv_indev_data_t * data )
         Serial.printf( "Touch (%d, %d)\n", touchX, touchY );
     }
 } // my_touchpad_read()
+
+void updateTimeField()
+{
+  
+  struct tm time;
+   
+  if( !getLocalTime(&time) ) 
+  {
+    Serial.println("Could not obtain time info");
+    return;
+  }
+ 
+  char date[12] = "";
+  char tod[10] = "";
+
+  snprintf(date, sizeof(date), "%02d/%02d/%02d", time.tm_mon, time.tm_mday, time.tm_year+1900);
+  snprintf(tod, sizeof(tod), "%02d:%02d:%02d", time.tm_hour, time.tm_min, time.tm_sec);
+  
+  setTimeLabel(String(date) + "  " + String(tod));
+} // updateTimeField()
