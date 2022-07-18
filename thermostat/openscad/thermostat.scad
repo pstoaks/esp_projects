@@ -1,4 +1,6 @@
-use <roundedcube.scad>
+// More information about roundedcube.scad: 
+// https://danielupshaw.com/openscad-rounded-corners/
+use <rounded_cube.scad>
 
 $fn = 80;
 in = 25.4;
@@ -506,7 +508,7 @@ module display_supports(post_dia, standoff_height)
 {
    y_pitch = 44.0 * mm;
    x_pitch = 76.0 * mm;
-   screw_dia = 1.5 * mm;
+   screw_dia = 1.6 * mm;
    hole_depth = 4.0 * mm;
 
    left_offset = 6.8 * mm;
@@ -524,7 +526,7 @@ module pcb_supports(post_dia, standoff_height)
    // Origin is center
    y_pitch = 46.0 * mm;
    x_pitch = 66.0 * mm;
-   screw_dia = 1.5 * mm;
+   screw_dia = 1.6 * mm;
    hole_depth = 8.0 * mm;
 
    left_offset = 2.0 * mm;
