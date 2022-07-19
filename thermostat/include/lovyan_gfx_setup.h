@@ -11,8 +11,8 @@
 #define LGFX_USE_V1
 #include <LovyanGFX.hpp>
 
-static const unsigned TFT_HEIGHT = 480U;
-static const unsigned TFT_WIDTH = 320U;
+static const unsigned TFT_HEIGHT = 320U;
+static const unsigned TFT_WIDTH = 240U;
 
 class LGFX : public lgfx::LGFX_Device
 {
@@ -80,9 +80,9 @@ public:
     { // タッチスクリーン制御の設定を行います。（必要なければ削除）
       auto cfg = _touch_instance.config();
       cfg.x_min      = 0;    // タッチスクリーンから得られる最小のX値(生の値)
-      cfg.x_max      = 319;  // タッチスクリーンから得られる最大のX値(生の値)
+      cfg.x_max      = TFT_WIDTH-1;  // タッチスクリーンから得られる最大のX値(生の値)
       cfg.y_min      = 0;    // タッチスクリーンから得られる最小のY値(生の値)
-      cfg.y_max      = 479;  // タッチスクリーンから得られる最大のY値(生の値)
+      cfg.y_max      = TFT_HEIGHT-1;  // タッチスクリーンから得られる最大のY値(生の値)
       cfg.pin_int    = -1;   // INTが接続されているピン番号
       cfg.bus_shared = true; // 画面と共通のバスを使用している場合 trueを設定
       cfg.offset_rotation = 0;// 表示とタッチの向きのが一致しない場合の調整 0~7の値で設定

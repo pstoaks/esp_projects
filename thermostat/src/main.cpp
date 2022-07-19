@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "esp_sntp.h"
+#include <esp_sntp.h>
 
 #include <WiFi.h>
 
@@ -11,18 +11,20 @@ static const unsigned ENC1_PB = 27;
 static const unsigned ENC1_Q1 = 26;
 static const unsigned ENC1_Q2 = 25;
 
+// https://docs.lvgl.io/latest/en/html/get-started/index.html
+#include <lvgl.h>
+#ifdef ESPI
 // https://github.com/Bodmer/TFT_eSPI
 // This video has a good summary of how to use the library, including the
 // SD card.
 // https://www.youtube.com/watch?v=rq5yPJbX_uk&ab_channel=XTronical
 //
 // User Setup comes from; TFT_eSPI/User_Setups/User_Setup.h
-#include <lvgl.h>
-#ifdef ESPI
 #include <TFT_eSPI.h>
 #else
 #include "lovyan_gfx_setup.h"
 #endif
+#include "screen1.h"
 #include <SD.h>
 #include <FS.h>
 
@@ -39,8 +41,8 @@ static const int SCREEN_HEIGHT = TFT_WIDTH;
 LGFX tft;
 static const unsigned TOUCH_CS = 22U;
 static const unsigned TFT_CS = 15U;
-static const int SCREEN_WIDTH = TFT_WIDTH;
-static const int SCREEN_HEIGHT = TFT_HEIGHT;
+static const int SCREEN_WIDTH = TFT_HEIGHT;
+static const int SCREEN_HEIGHT = TFT_WIDTH;
 #endif
 
 
@@ -136,28 +138,6 @@ static String card_type(uint8_t cardType)
   return rtn;
 } // card_type()
 
-// Temporary GUI stuff
-lv_obj_t *timeLabel = nullptr;
-lv_obj_t *tempLabel = nullptr;
-lv_obj_t *setLabel = nullptr;
-static void setTempLabel(String val)
-{
-  lv_label_set_text( tempLabel, val.c_str() );
-} // setTempLabel
-
-static void setSetLabel(String val)
-{
-  lv_label_set_text( setLabel, val.c_str() );
-} // setSetLabel()
-
-static void setTimeLabel(String val)
-{
-  lv_label_set_text( timeLabel, val.c_str() );
-} // setSetLabel()
-
-static void updateTimeField();
-
-
 // WiFi and NTP setup
 // credentials.h contains only two lines:
 // const char* SSID = "yourNetworkName";
@@ -194,7 +174,7 @@ void setup()
 
   tft.begin();
   tft.setRotation(1);
-  tft.setBrightness(100); // 0 - 255?
+  tft.setBrightness(200); // 0 - 255?
 #ifdef ESPI
   ft.setTouch( TOUCH_CAL_DATA );
 #else
@@ -271,31 +251,7 @@ void setup()
   configTime(PST_OFFSET, DST_OFFSET, ntpServer);
 
   // Initialize GUI
-  // Create simple label
-  timeLabel = lv_label_create( lv_scr_act() );
-  tempLabel = lv_label_create( lv_scr_act() );
-  setLabel = lv_label_create( lv_scr_act() );
-
-  static lv_style_t style_center_area;
-  lv_style_init(&style_center_area);
-  lv_style_set_bg_color(&style_center_area, lv_color_hex(0x000070));
-  lv_style_set_text_color(&style_center_area, lv_color_hex(0x00FFFF));
-  lv_style_set_text_align(&style_center_area, LV_TEXT_ALIGN_CENTER);
-
-  lv_style_set_text_font(&style_center_area, &lv_font_montserrat_28);
-  lv_style_set_bg_opa(&style_center_area, LV_OPA_100);
-  lv_style_set_border_width(&style_center_area, 1);
-  lv_style_set_border_color(&style_center_area, lv_color_black());
-
-  lv_obj_align( timeLabel, LV_ALIGN_TOP_MID, 0, 78 );
-  lv_obj_add_style(timeLabel, &style_center_area, LV_PART_MAIN);
-  lv_obj_align( tempLabel, LV_ALIGN_TOP_MID, 0, 110 );
-  lv_obj_add_style(tempLabel, &style_center_area, LV_PART_MAIN);
-  lv_obj_align( setLabel, LV_ALIGN_TOP_MID, 0, 150 );
-
-  setTimeLabel("01/01/01 00:00:00");
-  setTempLabel("0.0");
-  setSetLabel("000");
+  setup_screen();
 
   // This has to be the last thing in setup()!
   initialize_wdt(500, &wdt_ISR); // 500 msec
@@ -307,7 +263,6 @@ void loop() {
   static const unsigned DELAY = 5;
 
   feed_wdt();
-
 
   // LED Blink Code
   if (loop_cntr % (1000/DELAY) == 0) // 1 second
@@ -335,45 +290,48 @@ void loop() {
     Serial.printf("SD Card Type: %s  Size: %lluMB\n", card_type(cardType), cardSize);
   }
 
+  static float humidity = 0.0;
+  static float temp_fahren = 0.0;
   if (loop_cntr % (10000/DELAY) == 0)
   {
+    static const float TEMP_CORR = -3.0; // Temperature correction. Not sure it's constant.
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-    float h = dht.readHumidity();
+    humidity = dht.readHumidity();
     // Read temperature as Fahrenheit (isFahrenheit = true)
-    float f = dht.readTemperature(true);
+    temp_fahren = dht.readTemperature(true) + TEMP_CORR;
 
     // Check if any reads failed and exit early (to try again).
-    if (isnan(h) || isnan(f)) {
+    if (isnan(humidity) || isnan(temp_fahren)) 
+    {
       Serial.println(F("Failed to read from DHT sensor!"));
     }
     else
     {
       // Compute heat index in Fahrenheit (the default)
-      float hif = dht.computeHeatIndex(f, h);
+      float hif = dht.computeHeatIndex(temp_fahren, humidity);
 
-      Serial.print(F("Humidity: "));
-      Serial.print(h);
-      Serial.print(F("%  Temperature: "));
-      Serial.print(f);
-      Serial.print(F("°F  Heat index: "));
+      Serial.println(String("Temp: ") + String(temp_fahren) + "°F  " + String(humidity) + "%");
+      Serial.print(F("Heat index: "));
       Serial.print(hif);
-      Serial.println(F("°F"));
-      setTempLabel(String(f) + "°F  " + String(h) + "%");
+      Serial.println(F(" °F"));
     }
   }
 
-  if (loop_cntr % (100/DELAY) == 0)
+  static unsigned long oldPosition  = encoder.getCount();
+  static unsigned long newPosition = oldPosition;
+  if (loop_cntr % (33/DELAY) == 0)
   {
-
-    static unsigned long oldPosition  = encoder.getCount();
-
-    unsigned long newPosition = encoder.getCount();
-    if (newPosition != oldPosition) {
+    newPosition = encoder.getCount();
+    if ( newPosition != oldPosition ) {
       oldPosition = newPosition;
       Serial.println("Position: " + String(newPosition));
-      setSetLabel(String(newPosition));
     }
+  }
+
+  if ( loop_cntr % 10/DELAY )
+  {
+    update_temp_tset_display(temp_fahren, newPosition/10.0, humidity);
   }
 
   if ((loop_cntr % (500/DELAY) == 0) && !digitalRead(ENC1_PB))
@@ -390,9 +348,9 @@ void loop() {
 
   static bool synch_completed = false;
 
-  if ( synch_completed && ( loop_cntr % (800/DELAY) == 0 ) )
+  if ( synch_completed && ( loop_cntr % (900/DELAY) == 0 ) )
   {
-    updateTimeField();
+    update_time_label();
   }
   else
   {
@@ -445,22 +403,3 @@ void my_touchpad_read( lv_indev_drv_t * indev_driver, lv_indev_data_t * data )
     }
 } // my_touchpad_read()
 
-void updateTimeField()
-{
-  
-  struct tm time;
-   
-  if( !getLocalTime(&time) ) 
-  {
-    Serial.println("Could not obtain time info");
-    return;
-  }
- 
-  char date[12] = "";
-  char tod[10] = "";
-
-  snprintf(date, sizeof(date), "%02d/%02d/%02d", time.tm_mon, time.tm_mday, time.tm_year+1900);
-  snprintf(tod, sizeof(tod), "%02d:%02d:%02d", time.tm_hour, time.tm_min, time.tm_sec);
-  
-  setTimeLabel(String(date) + "  " + String(tod));
-} // updateTimeField()
