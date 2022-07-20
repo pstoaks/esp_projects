@@ -285,29 +285,31 @@ void loop() {
     #endif
   }
 
-  if ( loop_cntr % (10000/DELAY) == 0)
+  if ( loop_cntr % (15000/DELAY) == 0)
   {
     Serial.printf("SD Card Type: %s  Size: %lluMB\n", card_type(cardType), cardSize);
   }
 
   static float humidity = 0.0;
   static float temp_fahren = 0.0;
-  if (loop_cntr % (10000/DELAY) == 0)
+  if (loop_cntr % (15000/DELAY) == 0)
   {
     static const float TEMP_CORR = -3.0; // Temperature correction. Not sure it's constant.
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-    humidity = dht.readHumidity();
+    float h = dht.readHumidity();
     // Read temperature as Fahrenheit (isFahrenheit = true)
-    temp_fahren = dht.readTemperature(true) + TEMP_CORR;
+    float t = dht.readTemperature(true) + TEMP_CORR;
 
     // Check if any reads failed and exit early (to try again).
-    if (isnan(humidity) || isnan(temp_fahren)) 
+    if (isnan(h) || isnan(t)) 
     {
       Serial.println(F("Failed to read from DHT sensor!"));
     }
     else
     {
+      humidity = h;
+      temp_fahren = t;
       // Compute heat index in Fahrenheit (the default)
       float hif = dht.computeHeatIndex(temp_fahren, humidity);
 
@@ -320,7 +322,7 @@ void loop() {
 
   static unsigned long oldPosition  = encoder.getCount();
   static unsigned long newPosition = oldPosition;
-  if (loop_cntr % (33/DELAY) == 0)
+  if (loop_cntr % (99/DELAY) == 0)
   {
     newPosition = encoder.getCount();
     if ( newPosition != oldPosition ) {
@@ -329,7 +331,7 @@ void loop() {
     }
   }
 
-  if ( loop_cntr % 10/DELAY )
+  if ( loop_cntr % 500/DELAY )
   {
     update_temp_tset_display(temp_fahren, newPosition/10.0, humidity);
   }
@@ -348,7 +350,7 @@ void loop() {
 
   static bool synch_completed = false;
 
-  if ( synch_completed && ( loop_cntr % (900/DELAY) == 0 ) )
+  if ( synch_completed && ( loop_cntr % (5000/DELAY) == 0 ) )
   {
     update_time_label();
   }

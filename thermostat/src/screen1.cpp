@@ -33,6 +33,8 @@ static void set_value(void *indic, int32_t v)
 
 void setup_screen(void) 
 {
+  lv_obj_set_style_bg_color(lv_scr_act(), lv_palette_main(LV_PALETTE_INDIGO), 0);
+
   meter = lv_meter_create(lv_scr_act());
   lv_obj_align(meter, LV_ALIGN_BOTTOM_MID, 0, -10);
   lv_obj_set_size(meter, 220, 220);
@@ -89,10 +91,12 @@ void setup_screen(void)
   lv_obj_align_to(tset_label, blue_obj, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
 
   date_time_label = lv_label_create(lv_scr_act());
-  lv_obj_set_width(date_time_label, 120);
+  lv_obj_set_width(date_time_label, 100);
   lv_obj_set_style_text_align(date_time_label, LV_TEXT_ALIGN_RIGHT, 0);
+  lv_obj_set_style_text_font(date_time_label, &lv_font_montserrat_18, LV_PART_MAIN);
+  lv_obj_set_style_text_color(date_time_label, lv_color_white(), LV_PART_MAIN);
   lv_obj_align(date_time_label, LV_ALIGN_TOP_RIGHT, -10, 0);
-  lv_label_set_text(date_time_label, "07/01/22  20:10");
+  lv_label_set_text(date_time_label, "07/01/22\n20:10");
 
 } // setup_screen()
 
@@ -112,30 +116,37 @@ void update_time_label()
   snprintf(date, sizeof(date), "%02d/%02d/%02d", time.tm_mon, time.tm_mday, time.tm_year+1900-2000);
   snprintf(tod, sizeof(tod), "%02d:%02d", time.tm_hour, time.tm_min, time);
   
-  String date_time = String(date) + "  " + String(tod);
+  String date_time = String(date) + "\n" + String(tod);
 
   lv_label_set_text(date_time_label, date_time.c_str());
 } // update_time()
 
 void update_temp_tset_display(float temp_fahren, float temp_set, float humid) 
 {
-  String temp_text = String( static_cast<int>(temp_fahren + 0.5) );
-  lv_label_set_text(temp_label, temp_text.c_str());
 
   static int prev_temp = 0;
-  lv_anim_set_var(&a, temp_indic);
-  lv_anim_set_time(&a, 500);
-  lv_anim_set_values(&a, prev_temp, int(temp_fahren));
-  lv_anim_start(&a);
-  prev_temp = int(temp_fahren);
+  int curr_temp = static_cast<int>(temp_fahren+0.5);
+  if ( curr_temp != prev_temp )
+  {
+    lv_label_set_text(temp_label, String(curr_temp).c_str());
 
-  String tset_text = String("Temp Set: ") + temp_set + " °F";
-  lv_label_set_text(tset_label, tset_text.c_str());
+    lv_anim_set_var(&a, temp_indic);
+    lv_anim_set_time(&a, 500);
+    lv_anim_set_values(&a, prev_temp, curr_temp);
+    lv_anim_start(&a);
+    prev_temp = curr_temp;
+  }
 
-  static int prev_tset_usage = 0;
-  lv_anim_set_var(&a, tset_indic);
-  lv_anim_set_time(&a, 500);
-  lv_anim_set_values(&a, prev_tset_usage, int(temp_set));
-  lv_anim_start(&a);
-  prev_tset_usage = int(temp_set);
+  static int prev_tset = 0;
+  int curr_tset = static_cast<int>(temp_set+0.5);
+  if ( curr_tset != prev_tset )
+  {
+    lv_label_set_text(tset_label, String(curr_tset).c_str());
+
+    lv_anim_set_var(&a, tset_indic);
+    lv_anim_set_time(&a, 500);
+    lv_anim_set_values(&a, prev_tset, curr_tset);
+    lv_anim_start(&a);
+    prev_tset = curr_tset;
+  }
 } // update_temp_tset_display()
