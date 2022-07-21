@@ -141,7 +141,7 @@ static String card_type(uint8_t cardType)
 // WiFi and NTP setup
 // credentials.h contains only two lines:
 // const char* SSID = "yourNetworkName";
-// const char* WPA_PASSWD =  "yourNetworkPass
+// const char* WPA_PASSWD =  "yourNetworkPass";
 #include "credentials.h"
 // const char* ntpServer = "time.google.com";
 const char* ntpServer = "pool.ntp.org";
