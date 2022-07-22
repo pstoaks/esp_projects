@@ -143,6 +143,7 @@ static String card_type(uint8_t cardType)
 // const char* SSID = "yourNetworkName";
 // const char* WPA_PASSWD =  "yourNetworkPass";
 #include "credentials.h"
+#include "http_request.h"
 // const char* ntpServer = "time.google.com";
 const char* ntpServer = "pool.ntp.org";
 
@@ -350,6 +351,7 @@ void loop() {
 
   static bool synch_completed = false;
 
+  // Update the time label in the GUI
   if ( synch_completed && ( loop_cntr % (5000/DELAY) == 0 ) )
   {
     update_time_label();
@@ -358,6 +360,18 @@ void loop() {
   {
     if ( sntp_get_sync_status() == SNTP_SYNC_STATUS_COMPLETED )
       synch_completed = true;
+  }
+
+  // Update the outside temperature
+  if ( loop_cntr % (60000/DELAY) == 0 )
+  {
+    String json;
+    if ( http_get("/device?dev_id=ESP_F803", "", json))
+    {
+      Serial.println("Outside temp sensor: "+json);
+    }
+    else
+      Serial.println("Get outside temperature failed.");
   }
 
   loop_cntr++;

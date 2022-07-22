@@ -6,3 +6,4 @@
 Thermostat-backups
 *.kicad_prl
 credentials.h
+devices.json
