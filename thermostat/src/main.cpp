@@ -2,6 +2,13 @@
 #include <esp_sntp.h>
 
 #include <WiFi.h>
+#include <ArduinoJson.h>
+
+// Allocate a temporary JsonDocument
+// Don't forget to change the capacity to match your requirements.
+// Use https://arduinojson.org/v6/assistant to compute the capacity.
+StaticJsonDocument<2400> json_doc;
+
 
 ////////////////////////////////////////////////
 // Encoder
@@ -255,7 +262,7 @@ void setup()
   setup_screen();
 
   // This has to be the last thing in setup()!
-  initialize_wdt(500, &wdt_ISR); // 500 msec
+  initialize_wdt(5000, &wdt_ISR); // 500 msec
 
   } // setup()
 
@@ -366,9 +373,22 @@ void loop() {
   if ( loop_cntr % (60000/DELAY) == 0 )
   {
     String json;
-    if ( http_get("/device?dev_id=ESP_F803", "", json))
+    if ( http_get("/device?dev_id=ESP_F803", "", json) )
     {
-      Serial.println("Outside temp sensor: "+json);
+      Serial.println("Outside temp sensor: " + json);
+
+      DeserializationError error = deserializeJson(json_doc, json);
+      if ( error )
+      {
+        Serial.printf("JSON Decoding Error: %s\n", error.c_str());
+      }
+      else
+      {
+          float outside_temp = json_doc["subdevs"]["bme280"]["state"]["temp"];
+          float humid = json_doc["subdevs"]["bme280"]["state"]["humid"];
+          float baro = json_doc["subdevs"]["bme280"]["state"]["baro"];
+          update_outside_temp(outside_temp, humid, baro);
+      }
     }
     else
       Serial.println("Get outside temperature failed.");

@@ -17,6 +17,7 @@
 #endif
 
 
+static lv_obj_t *outside_temp_label;
 static lv_obj_t *date_time_label;
 static lv_obj_t *meter;
 static lv_obj_t *temp_label;
@@ -98,6 +99,14 @@ void setup_screen(void)
   lv_obj_align(date_time_label, LV_ALIGN_TOP_RIGHT, -10, 0);
   lv_label_set_text(date_time_label, "07/01/22\n20:10");
 
+  outside_temp_label = lv_label_create(lv_scr_act());
+  lv_obj_set_width(outside_temp_label, 100);
+  lv_obj_set_style_text_align(outside_temp_label, LV_TEXT_ALIGN_LEFT, 0);
+  lv_obj_set_style_text_font(outside_temp_label, &lv_font_montserrat_18, LV_PART_MAIN);
+  lv_obj_set_style_text_color(outside_temp_label, lv_color_white(), LV_PART_MAIN);
+  lv_obj_align(outside_temp_label, LV_ALIGN_TOP_LEFT, 10, 0);
+  lv_label_set_text(outside_temp_label, "32.3");
+
 } // setup_screen()
 
 void update_time_label() 
@@ -120,6 +129,13 @@ void update_time_label()
 
   lv_label_set_text(date_time_label, date_time.c_str());
 } // update_time()
+
+void update_outside_temp(const float temp, const float humid, const float baro) 
+{
+  String outside = String(temp) + "°F\n" + String(humid) + "%\n" + String(baro) +"\"";
+
+  lv_label_set_text(outside_temp_label, outside.c_str());
+} // update_outside_temp()
 
 void update_temp_tset_display(float temp_fahren, float temp_set, float humid) 
 {
