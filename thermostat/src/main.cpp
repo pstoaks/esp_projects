@@ -55,7 +55,7 @@ static const int SCREEN_HEIGHT = TFT_WIDTH;
 
 static const unsigned TFT_BACKLIGHT = 5U;
 static const unsigned SD_CS = 13U;
-static uint16_t TOUCH_CAL_DATA[5] = { 275, 3620, 264, 3532, 1 };
+static uint16_t TOUCH_CAL_DATA[8] = { 600, 720, 3650, 3650, 1 };
 
 // LVGL Stuff
 static lv_disp_draw_buf_t draw_buf;
@@ -277,20 +277,16 @@ void loop() {
     digitalWrite(LED_BUILTIN, on ? HIGH : LOW);   // turn the LED on (HIGH is the voltage level)
     on = !on;
   }
-
+#if 0
   if ( loop_cntr & (250/DELAY) )
   {
     // Get and report touch
     uint16_t x, y;
 
     tft.getTouchRaw(&x, &y);
-    #if 0
-    Serial.printf("x: %i     ", x);
-    Serial.printf("y: %i     ", y);
-    Serial.printf("z: %i \n", tft.getTouchRawZ());
-    #endif
+    Serial.printf("TFT Touch Raw: (%i, %i)\n", x, y);
   }
-
+#endif
   static float humidity = 0.0;
   static float temp_fahren = 0.0;
   if (loop_cntr % (15000/DELAY) == 0)
@@ -368,7 +364,7 @@ void loop() {
     String json;
     if ( http_get("/device?dev_id=ESP_F803", "", json) )
     {
-      Serial.println("\n\nOutside temp sensor: " + json);
+//      Serial.println("\n\nOutside temp sensor: " + json);
 
       DeserializationError error = deserializeJson(json_doc, json);
       if ( error )
@@ -394,7 +390,7 @@ void loop() {
     String json;
     if ( http_get("/device?dev_id=ESP_F444", "", json) )
     {
-      Serial.println("\n\nFamily room temp sensor: " + json);
+//      Serial.println("\n\nFamily room temp sensor: " + json);
 
       DeserializationError error = deserializeJson(json_doc, json);
       if ( error )

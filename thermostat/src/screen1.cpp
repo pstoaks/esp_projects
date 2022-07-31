@@ -26,6 +26,9 @@ static lv_obj_t *meter = nullptr;
 static lv_obj_t *temp_label = nullptr;
 static lv_obj_t *tset_label = nullptr;
 static lv_obj_t *battery_label = nullptr;
+static lv_obj_t *btn_label = nullptr;
+static lv_obj_t *lamp_btn = nullptr;
+
 static lv_meter_indicator_t *temp_indic = nullptr;
 static lv_meter_indicator_t *tset_indic = nullptr;
 static lv_anim_t a;
@@ -34,6 +37,18 @@ static void set_value(void *indic, int32_t v)
 {
   lv_meter_set_indicator_end_value(meter, (lv_meter_indicator_t *)indic, v);
 } // set_value()
+
+static void btn_event_handler(lv_event_t* event)
+{
+  if (event->code == LV_EVENT_CLICKED) 
+  {
+    Serial.println("Clicked");
+  }
+  else if(event->code == LV_EVENT_VALUE_CHANGED) 
+  {
+    Serial.println("Toggled");
+  }
+} // btn_event_handler()
 
 void setup_screen(void) 
 {
@@ -136,7 +151,6 @@ void setup_screen(void)
 
   ///////////////////////////////////////////////////////////////////////
   // Family room temperature
-  // @TODO: Time and date should be in a parent object to reduce styling.
   fr_temp_label = lv_label_create(lv_scr_act());
   lv_obj_set_width(fr_temp_label, 100);
   lv_obj_set_style_text_align(fr_temp_label, LV_TEXT_ALIGN_RIGHT, 0);
@@ -145,6 +159,17 @@ void setup_screen(void)
   lv_obj_align(fr_temp_label, LV_ALIGN_BOTTOM_RIGHT, -10, -5);
   lv_label_set_text(fr_temp_label, "00.0");
 
+  ///////////////////////////////////////////////////////////////////////
+  // Table lamp button
+  lamp_btn = lv_btn_create(lv_scr_act());
+  lv_obj_add_event_cb(lamp_btn, btn_event_handler, LV_EVENT_ALL, NULL);
+  lv_obj_align(lamp_btn, LV_ALIGN_BOTTOM_LEFT, 5, -5);
+  lv_obj_add_flag(lamp_btn, LV_OBJ_FLAG_CHECKABLE);
+  lv_obj_set_height(lamp_btn, LV_SIZE_CONTENT);
+
+  btn_label = lv_label_create(lamp_btn);
+  lv_label_set_text(btn_label, "Lamp");
+  lv_obj_center(btn_label);
 } // setup_screen()
 
 void update_time_label() 
