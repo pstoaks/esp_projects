@@ -7,7 +7,7 @@
 // Allocate a temporary JsonDocument
 // Don't forget to change the capacity to match your requirements.
 // Use https://arduinojson.org/v6/assistant to compute the capacity.
-StaticJsonDocument<2400> json_doc;
+StaticJsonDocument<3000> json_doc;
 
 
 ////////////////////////////////////////////////
@@ -112,7 +112,6 @@ static const unsigned DHTPIN = 33;
 
 DHT dht(DHTPIN, DHTTYPE);
 
-
 /////////////////////////////////////////////////
 // Light sensor pin
 static const unsigned LIGHT_PIN = 36; // ADC1_0
@@ -170,14 +169,13 @@ void setup()
   Serial.println("Encoder has been setup");
 
   pinMode(TFT_BACKLIGHT, OUTPUT);
-  pinMode(TFT_BACKLIGHT, OUTPUT);
   pinMode(TFT_CS, OUTPUT);
+  pinMode(TOUCH_CS, OUTPUT);
   pinMode(SD_CS, OUTPUT);
   digitalWrite(TFT_BACKLIGHT, HIGH);
   digitalWrite(TFT_CS, HIGH);
   digitalWrite(TOUCH_CS, HIGH);
   digitalWrite(SD_CS, HIGH);
-
   Serial.println("TFT pins have been setup");
 
   tft.begin();
@@ -216,11 +214,9 @@ void setup()
 
   pinMode(DHTPIN, INPUT_PULLUP);
   dht.begin();
-
   Serial.println("DHT has been setup");
 
   setup_button_handler();
-
   Serial.println("Button has been setup");
 
  // SD Card
@@ -231,6 +227,7 @@ void setup()
     if ( cardType != CARD_NONE )
     {
       cardSize = SD.cardSize() / (1024 * 1024);
+      Serial.printf("SD Card Type: %s  Size: %lluMB\n", card_type(cardType), cardSize);
     }
     else
     {
@@ -254,6 +251,7 @@ void setup()
   }
   Serial.println("Connected to Network");
   Serial.println(String("IP Address: ") + WiFi.localIP());
+
   #define DST_OFFSET 3600
   #define PST_OFFSET -8*3600
   configTime(PST_OFFSET, DST_OFFSET, ntpServer);
@@ -293,11 +291,6 @@ void loop() {
     #endif
   }
 
-  if ( loop_cntr % (15000/DELAY) == 0)
-  {
-    Serial.printf("SD Card Type: %s  Size: %lluMB\n", card_type(cardType), cardSize);
-  }
-
   static float humidity = 0.0;
   static float temp_fahren = 0.0;
   if (loop_cntr % (15000/DELAY) == 0)
@@ -330,7 +323,7 @@ void loop() {
 
   static unsigned long oldPosition  = encoder.getCount();
   static unsigned long newPosition = oldPosition;
-  if (loop_cntr % (99/DELAY) == 0)
+  if (loop_cntr % (100/DELAY) == 0)
   {
     newPosition = encoder.getCount();
     if ( newPosition != oldPosition ) {
@@ -339,17 +332,17 @@ void loop() {
     }
   }
 
-  if ( loop_cntr % 500/DELAY )
-  {
-    update_temp_tset_display(temp_fahren, newPosition/10.0, humidity);
-  }
-
   if ((loop_cntr % (500/DELAY) == 0) && !digitalRead(ENC1_PB))
   {
     Serial.println("Pressed : Button Cnt: " + String(button_cnt));
   }
 
-  if (loop_cntr % (10000/DELAY) == 0)
+  if ( loop_cntr % 100/DELAY )
+  {
+    update_temp_tset_display(temp_fahren, newPosition/10.0, humidity);
+  }
+
+  if (loop_cntr % (20000/DELAY) == 0)
   {
     // Read light level
     auto light_level = analogRead(LIGHT_PIN);
@@ -375,7 +368,7 @@ void loop() {
     String json;
     if ( http_get("/device?dev_id=ESP_F803", "", json) )
     {
-      Serial.println("Outside temp sensor: " + json);
+      Serial.println("\n\nOutside temp sensor: " + json);
 
       DeserializationError error = deserializeJson(json_doc, json);
       if ( error )
@@ -387,6 +380,7 @@ void loop() {
           float outside_temp = json_doc["subdevs"]["bme280"]["state"]["temp"];
           float humid = json_doc["subdevs"]["bme280"]["state"]["humid"];
           float baro = json_doc["subdevs"]["bme280"]["state"]["baro"];
+          Serial.printf("Outside temp: %3.1f humid: %2.1f, baro: %2.1f\n", outside_temp, humid, baro);
           update_outside_temp(outside_temp, humid, baro);
       }
     }
@@ -394,10 +388,34 @@ void loop() {
       Serial.println("Get outside temperature failed.");
   }
 
-  loop_cntr++;
+  // Update the family room temperature
+  if ( loop_cntr % (58000/DELAY) == 0 )
+  {
+    String json;
+    if ( http_get("/device?dev_id=ESP_F444", "", json) )
+    {
+      Serial.println("\n\nFamily room temp sensor: " + json);
+
+      DeserializationError error = deserializeJson(json_doc, json);
+      if ( error )
+      {
+        Serial.printf("JSON Decoding Error: %s\n", error.c_str());
+      }
+      else
+      {
+          float family_room_temp = json_doc["subdevs"]["ds18b20"]["state"]["temp"];
+          Serial.printf("Family room temp: %3.1f\n", family_room_temp);
+          update_fam_room_temp(family_room_temp);
+      }
+    }
+    else
+      Serial.println("Get family room temperature failed.");
+  }
 
   // Let the GUI do it's work
   lv_timer_handler();
+
+  loop_cntr++;
 
   delay(DELAY);
 } // loop()
