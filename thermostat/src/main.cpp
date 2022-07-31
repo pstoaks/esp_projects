@@ -296,7 +296,7 @@ void loop() {
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
     float h = dht.readHumidity();
     // Read temperature as Fahrenheit (isFahrenheit = true)
-    float t = dht.readTemperature(true) + TEMP_CORR;
+    float t = dht.readTemperature(true);
 
     // Check if any reads failed and exit early (to try again).
     if (isnan(h) || isnan(t)) 
@@ -306,7 +306,8 @@ void loop() {
     else
     {
       humidity = h;
-      temp_fahren = t;
+      temp_fahren = t + TEMP_CORR;
+#if 0
       // Compute heat index in Fahrenheit (the default)
       float hif = dht.computeHeatIndex(temp_fahren, humidity);
 
@@ -314,6 +315,7 @@ void loop() {
       Serial.print(F("Heat index: "));
       Serial.print(hif);
       Serial.println(F(" °F"));
+#endif
     }
   }
 
