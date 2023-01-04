@@ -93,6 +93,10 @@ void IRAM_ATTR wdt_ISR()
    reset_module(); // Defined in esp32_wdt.h
 } // wdt_ISR()
 
+/////////////////////////////////////////////
+// PIR Sensor
+static const unsigned PIR_PIN = 32;
+
 
 /////////////////////////////////////////////
 // DHT22 Temp & Humidity sensor
@@ -172,6 +176,7 @@ void setup()
   pinMode(TFT_CS, OUTPUT);
   pinMode(TOUCH_CS, OUTPUT);
   pinMode(SD_CS, OUTPUT);
+  pinMode(PIR_PIN, INPUT);
   digitalWrite(TFT_BACKLIGHT, HIGH);
   digitalWrite(TFT_CS, HIGH);
   digitalWrite(TOUCH_CS, HIGH);
@@ -345,6 +350,19 @@ void loop() {
     // Read light level
     auto light_level = analogRead(LIGHT_PIN);
     Serial.println("Light: " + String(light_level));
+  }
+
+  static int last_state = 0;
+  if (loop_cntr % (999/DELAY) == 0)
+  {
+    // Read the PIR sensor
+    int cur_state = digitalRead(PIR_PIN);
+    if ( cur_state != last_state )
+    {
+      if ( cur_state == 1 )
+        Serial.println("Motion detected!");
+      last_state = cur_state;
+    }
   }
 
   static bool synch_completed = false;
