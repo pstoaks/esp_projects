@@ -6,11 +6,11 @@ $fn = 80;
 in = 25.4;
 mm = 1.0;
 pin_pitch = 0.1 * in;
-round_radius = 0.0; // 2.0 The radius of rounded edges
+round_radius = 2.0; // 2.0 The radius of rounded edges
 
 PCB_DEF = [70 * mm, 50.0 * mm, 1.6 * mm];
 
-display_win_width = 59.0 * mm;
+display_win_width = 60.0 * mm;
 display_win_left_offset = 19.0 * mm-2; // from left edge of PCB
 display_thickness = 5.8 * mm;
 function display_translation(width, depth, wall_thick, display_y) = 
@@ -18,23 +18,20 @@ function display_translation(width, depth, wall_thick, display_y) =
    display_y, 
    depth - (display_thickness + wall_thick)];
  
-PIR_width = 25.0 * mm;
-PIR_depth_below_case = 13.5 * mm;
-PIR_lense_dia = 23.5 * mm;
-function PIR_xlate(width, depth, wall_thick, y_offset) = 
-   [width-wall_thick-PIR_width/2.0-1.5, 
+function PIR_xlate(width, depth, wall_thick, y_offset, pir_dia) =
+   [width-wall_thick-pir_dia/2.0-1.5,
    y_offset, 
-   depth-wall_thick-PIR_depth_below_case-0.2];
+   depth-wall_thick];
 
 knob_dia = 40.0 * mm;
 knob_depth = 19.0 * mm;
 
 
 assembly(knob_dia, knob_depth);
-// top_shell();
 // shaft_attach(10.0 * mm, 10.0);
 // knob(knob_dia, knob_depth);
 // display();
+// littlePIR_sensor();
 // PIR_sensor();
 // DHT22();
 // esp32();
@@ -44,12 +41,12 @@ assembly(knob_dia, knob_depth);
 module assembly(knob_dia, knob_depth)
 {
    width = 105.0 * mm;
-   length = 140.0 * mm;
+   length = 135.0 * mm;
    depth = 18.0 * mm;
    wall_thick = 1.2 * mm;
 
    display_y = length - 56 * mm;
-   PIR_y_offset = length - 73.5 * mm;
+   PIR_y_offset = length - 70.0 * mm;
 
    knob_y = 43.0 * mm;
    knob_z_offset = depth-wall_thick-0.4;
@@ -88,10 +85,10 @@ module assembly(knob_dia, knob_depth)
    }
    if ($preview)
    {
-      translate(PIR_xlate(width, depth, wall_thick, PIR_y_offset))
+      translate(PIR_xlate(width, depth, wall_thick, PIR_y_offset, littlePIR_dimensions[DOME_DIA]))
       {
          rotate(0.0)
-            PIR_sensor();
+            littlePIR_sensor();
       }
    }
 } //assembly()
@@ -225,21 +222,69 @@ module esp32()
    }
 } // esp32()
 
-module PIR_sensor()
+largePIR_width = 25.0 * mm;
+largePIR_depth_below_case = 13.5 * mm;
+largePIR_lense_dia = 23.5 * mm;
+module largePIR_sensor()
 {
    // Origin is at center of sensor dome
    height = 33.0 * mm;
    total_depth = 25.0 * mm;
 
-   translate([0, 0, PIR_depth_below_case])
-      color("White") sphere(d=PIR_lense_dia);
+   translate([0, 0, largePIR_depth_below_case])
+      color("White") sphere(d=largePIR_lense_dia);
    
-   translate([-PIR_width/2.0, -height/2.0, 0])
+   translate([-largePIR_width/2.0, -height/2.0, 0])
    {
-      cube([PIR_width, height, PIR_depth_below_case]);
+      cube([largePIR_width, height, largePIR_depth_below_case]);
    }
    
 } // PIR_sensor()
+
+littlePIR_dimensions = [
+   10.5, // hole_diameter
+   12.5, // dome diameter
+   21.0 // depth below mounting edge
+];
+HOLE_DIA = 0;
+DOME_DIA = 1;
+DEPTH = 2;
+
+module littlePIR_sensor_dome()
+{
+   hole_dia = littlePIR_dimensions[HOLE_DIA];
+   dome_dia = littlePIR_dimensions[DOME_DIA];
+   mounting_cyl_length = 4.2 * mm;
+   color("White")
+   {
+      difference()
+      {
+         color("White")
+            sphere(d = dome_dia);
+         translate([-dome_dia/2.0, -dome_dia/2.0, -dome_dia])
+            cube([dome_dia, dome_dia, dome_dia]);
+      }
+      translate([0, 0, -dome_dia/2.0+mounting_cyl_length/2.0])
+         cylinder(d=hole_dia, h=mounting_cyl_length);
+   }
+}
+
+module littlePIR_sensor()
+{
+   // XY Origin is at center of sensor dome, Z is at base of dome.
+   depth_below_case = littlePIR_dimensions[DEPTH];
+   width = 9.0 * mm;
+   height = 5.6 * mm;
+
+
+   littlePIR_sensor_dome();
+
+   translate([-width/2.0, -height/2.0, -depth_below_case])
+   {
+      cube([width, height, depth_below_case]);
+   }
+
+} // littlePIR_sensor()
 
 module DHT22()
 {
@@ -268,7 +313,7 @@ module DHT22()
    }
 } // DHT22()
 
-module top_shell(width, length, depth, wall_thick, display_y, knob_offset, knob_dia, pir_y)
+module top_shell(width, length, depth, wall_thick, display_y, knob_offset, knob_dia, pir_y, pir_dia)
 {
    standoff_height = 4.3 * mm;
    display_xlate = display_translation(width, depth, wall_thick, display_y);
@@ -300,26 +345,29 @@ module top_shell(width, length, depth, wall_thick, display_y, knob_offset, knob_
       }
 
       // PIR cutout
-      translate(PIR_xlate(width, depth, wall_thick, pir_y))
+      translate(PIR_xlate(width, depth, wall_thick, pir_y, littlePIR_dimensions[DOME_DIA]))
       {
-         cylinder(h=40.0, d=PIR_lense_dia*1.02);
+         cylinder(h=40.0, d=littlePIR_dimensions[HOLE_DIA]);
       }
       
       // USB Cutout
-//      translate([-5, 17.0, 8])
-//      {
-//            roundedcube([11, 12, 9], false, 1);
-//      }
+      translate([-5, 15.0, 5.0])
+      {
+         cube([10, pass_thru_width, pass_thru_height]);
+      }
    }
 
-   // USB Cutout
-   translate([-5, 17.0, 8])
+   // USB pass-thru
+   pass_thru_depth = wall_thick*1.5;
+   pass_thru_width = 12.0 * mm;
+   pass_thru_height = 9.0 * mm;
+   translate([-(pass_thru_depth-wall_thick)/2.0, 15.0, 5.0])
    {
       difference()
       {
-         roundedcube([11, 12, 9], false, 1);
-         translate([-.5, .5, .5])
-            roundedcube([10, 11, 8], false, 1);
+         roundedcube([pass_thru_depth, pass_thru_width+wall_thick, pass_thru_height+wall_thick], false, 1);
+         translate([-.5, wall_thick/2.0, wall_thick/2.0])
+            roundedcube([pass_thru_depth*1.5, pass_thru_width, pass_thru_height], false, 1);
       }
    }
 
@@ -494,7 +542,7 @@ module display()
 module display_window(thick)
 {
    display_win_height = 45.0 * mm;
-   display_win_bottom_offset = 2.3 * mm; 
+   display_win_bottom_offset = 3.3 * mm;
 
    // display window
    translate([display_win_left_offset, display_win_bottom_offset, 0])
