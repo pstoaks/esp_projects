@@ -215,6 +215,7 @@ COLOR_SERIES = {
     "valentines": (PINK, WHITE, RED, WHITE),
     "valentines2": (PINK, PINK, PINK, PINK, PINK, PINK, PINK, PINK, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, RED, RED, RED, RED, RED, RED, RED, RED, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE),
     "spring": (YELLOW, YELLOW_GREEN, GREEN, DK_GREEN, YELLOW_GREEN),
+    "spring2": (YELLOW, GREEN, PURPLE, DK_GREEN, PINK),
     "white": (WHITE, LT_BLUE)
 }
 
@@ -257,7 +258,7 @@ else:
 # The number of LEDs in the string is now in the configuration file,
 # so we wait to initialize the LED controller until we have that info
 lc = PixelController(NEO_DATA_PIN, current_config['num_leds'])
-
+lc.set_brightness(0.0) # Initialize brightness to 0 to avoid very high initial current draw.
 apply_config(current_config)
 
 

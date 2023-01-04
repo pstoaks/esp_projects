@@ -8,5 +8,6 @@ ampy --port ${TTY} --baud 115200 put pixel_controller.py
 ampy --port ${TTY} --baud 115200 put config.py
 ampy --port ${TTY} --baud 115200 put http_server.py
 
-
+ampy --port ${TTY} --baud 115200 put home.html
+ampy --port ${TTY} --baud 115200 put led_config.json
 
