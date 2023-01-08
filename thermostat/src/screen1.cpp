@@ -1,8 +1,6 @@
 #include <Arduino.h>
 #include <esp_sntp.h>
 
-#include "screen1.h"
-
 #include <lvgl.h>
 #ifdef ESPI
 // https://github.com/Bodmer/TFT_eSPI
@@ -16,6 +14,7 @@
 #include "lovyan_gfx_setup.h"
 #endif
 
+#include "screen1.h"
 
 static lv_obj_t *outside_temp_label = nullptr;
 static lv_obj_t *outside_baro_label = nullptr;
@@ -33,7 +32,9 @@ static lv_meter_indicator_t *temp_indic = nullptr;
 static lv_meter_indicator_t *tset_indic = nullptr;
 static lv_anim_t a;
 
-static void set_value(void *indic, int32_t v) 
+SetTempDE lr_set_temp_DE; // The living room set temp display interface
+
+static void set_value(void *indic, int32_t v)
 {
   lv_meter_set_indicator_end_value(meter, (lv_meter_indicator_t *)indic, v);
 } // set_value()
@@ -216,7 +217,7 @@ void update_fam_room_temp(const float temp)
   lv_label_set_text(fr_temp_label, temps);
 } // update_fam_room_temp()
 
-void update_temp_tset_display(float temp_fahren, float temp_set, float humid) 
+void update_temp_tset_display(float temp_fahren, float humid)
 {
 
   char tsets[8] = "";
@@ -235,17 +236,22 @@ void update_temp_tset_display(float temp_fahren, float temp_set, float humid)
     prev_temp = curr_temp;
   }
 
-  static int prev_tset = 0;
-  int curr_tset = static_cast<int>(temp_set*10.0+0.5);
-  if ( curr_tset != prev_tset )
+} // update_temp_tset_display()
+
+void SetTempDE::update(float set_temp)
+{
+  int curr_tset = static_cast<int>(set_temp*10.0+0.5);
+  if ( curr_tset != _prev_tset )
   {
-    snprintf(tsets, sizeof(tsets), "%2.1f", temp_set);
+    char tsets[8] {""};
+    snprintf(tsets, sizeof(tsets), "%2.1f", set_temp);
     lv_label_set_text(tset_label, tsets);
 
     lv_anim_set_var(&a, tset_indic);
     lv_anim_set_time(&a, 500);
-    lv_anim_set_values(&a, static_cast<int>(prev_tset/10.0+0.5), static_cast<int>(curr_tset/10.0+0.5));
+    lv_anim_set_values(&a, static_cast<int>(_prev_tset/10.0+0.5), static_cast<int>(curr_tset/10.0+0.5));
     lv_anim_start(&a);
-    prev_tset = curr_tset;
+    _prev_tset = curr_tset;
   }
-} // update_temp_tset_display()
+
+} // update()

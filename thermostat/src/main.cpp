@@ -1,13 +1,17 @@
+// @todo Indoor humidity display
+// @todo Screen calibration and lamp button
+// @todo Continue refactoring
+// @todo Away/Home
+// @todo display stale sensor indicator (dead battery)
+// @todo Lamp control by Away/Home
+// @todo UDP logging
+// @todo Config file?
+// @todo status update to server?
 #include <Arduino.h>
 #include <esp_sntp.h>
 
 #include <WiFi.h>
 #include <ArduinoJson.h>
-
-// Allocate a temporary JsonDocument
-// Don't forget to change the capacity to match your requirements.
-// Use https://arduinojson.org/v6/assistant to compute the capacity.
-StaticJsonDocument<3000> json_doc;
 
 
 ////////////////////////////////////////////////
@@ -34,6 +38,8 @@ static const unsigned ENC1_Q2 = 25;
 #include "screen1.h"
 #include <SD.h>
 #include <FS.h>
+
+#include "temp_controller.h"
 
 ////////////////////////////////////////
 // Note that pinout and other parameters are defined in library
@@ -92,6 +98,13 @@ void IRAM_ATTR wdt_ISR()
    
    reset_module(); // Defined in esp32_wdt.h
 } // wdt_ISR()
+
+/////////////////////////////////////////////
+// Living room temperature controller
+static const unsigned LR_TEMP_CTRLR_UPDATE_MS = 100; // Update period in milliseconds
+static const unsigned LR_TEMP_CTRLR_SRVR_UPDATE_MS = 13000; // Update from server period in milliseconds
+TempController lr_temp_controller(LR_TEMP_CTRLR_UPDATE_MS, LR_TEMP_CTRLR_SRVR_UPDATE_MS,
+  encoder, &lr_set_temp_DE);
 
 /////////////////////////////////////////////
 // PIR Sensor
@@ -265,12 +278,12 @@ void setup()
   setup_screen();
 
   // This has to be the last thing in setup()!
-  initialize_wdt(5000, &wdt_ISR); // 500 msec
+  initialize_wdt(5000, &wdt_ISR); // 5000 msec
 
   } // setup()
 
 void loop() {
-  static unsigned loop_cntr = 0;
+  static unsigned loop_cntr = 1; // We start at 1 so that not all handlers work at startup causing a wdt timeout.
   static const unsigned DELAY = 5;
 
   feed_wdt();
@@ -324,17 +337,10 @@ void loop() {
     }
   }
 
-  static unsigned long oldPosition  = encoder.getCount();
-  static unsigned long newPosition = oldPosition;
-  if (loop_cntr % (100/DELAY) == 0)
-  {
-    newPosition = encoder.getCount();
-    if ( newPosition != oldPosition ) {
-      oldPosition = newPosition;
-      Serial.println("Position: " + String(newPosition));
-    }
-  }
+  // Perform the update on the living room temperature controller.
+  lr_temp_controller.update();
 
+  // Check the encoder pushbutton
   if ((loop_cntr % (500/DELAY) == 0) && !digitalRead(ENC1_PB))
   {
     Serial.println("Pressed : Button Cnt: " + String(button_cnt));
@@ -342,7 +348,7 @@ void loop() {
 
   if ( loop_cntr % 100/DELAY )
   {
-    update_temp_tset_display(temp_fahren, newPosition/10.0, humidity);
+    update_temp_tset_display(temp_fahren, humidity);
   }
 
   if (loop_cntr % (20000/DELAY) == 0)
@@ -472,4 +478,5 @@ void my_touchpad_read( lv_indev_drv_t * indev_driver, lv_indev_data_t * data )
         Serial.printf( "Touch (%d, %d)\n", touchX, touchY );
     }
 } // my_touchpad_read()
+
 
