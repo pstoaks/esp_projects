@@ -1,6 +1,7 @@
 // @todo Indoor humidity display
 // @todo Screen calibration and lamp button
 // @todo Continue refactoring
+// @todo Use motion detection to trigger display update?
 // @todo Away/Home
 // @todo display stale sensor indicator (dead battery)
 // @todo Lamp control by Away/Home

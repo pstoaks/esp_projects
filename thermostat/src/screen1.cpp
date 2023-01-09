@@ -192,7 +192,9 @@ void update_time_label()
     time.tm_mon = time.tm_mon; // 0-index into array
 
   snprintf(date, sizeof(date), "%3.3s %02d", months[time.tm_mon], time.tm_mday);
-  snprintf(tod, sizeof(tod), "%2d:%02d %s", time.tm_hour % 12, time.tm_min, (time.tm_hour<12)?"am":"pm");
+  if ( time.tm_hour > 12 )
+    time.tm_hour -= 12;
+  snprintf(tod, sizeof(tod), "%2d:%02d %s", time.tm_hour, time.tm_min, (time.tm_hour<12)?"am":"pm");
   
   lv_label_set_text(time_label, tod );
   lv_label_set_text(date_label, date );
