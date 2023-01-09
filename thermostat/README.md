@@ -8,11 +8,11 @@ enhance.
 The microcontroller is an ESP32 on a NodeMCU clone dev board. The GUI is implemented
 using LVGL. The OpenSCAD source for the enclosure is included along with KiCAD schematic.
 
-![Photo of front of controller while operating.](https://github.com/pstoaks/esp_projects/tree/master/thermostat/doc/ThermoOperatingFront.jpg "Home Automation Controller")
+![Photo of front of controller while operating.](doc/ThermoOperatingFront.jpg)
 
-![Photo of 3d-printed enclosure.](https://github.com/pstoaks/esp_projects/tree/master/thermostat/doc/CaseFrontTop.jpg "3d-Printed Case")
+![Photo of 3d-printed enclosure.](doc/CaseFrontTop.jpg)
 
-![Photo of inside of 3d-printed enclosure showing standoffs.](https://github.com/pstoaks/esp_projects/tree/master/thermostat/doc/CaseFrontInside.jpg "3d-Printed Case")
+![Photo of inside of 3d-printed enclosure showing standoffs.](doc/CaseFrontInside.jpg)
 
 
 [Schematic](https://github.com/pstoaks/esp_projects/tree/master/thermostat/doc/Schematic.pdf)
