@@ -1,4 +1,3 @@
-// @todo Indoor humidity display
 // @todo Screen calibration and lamp button
 // @todo Continue refactoring
 // @todo Use motion detection to trigger display update?
@@ -8,6 +7,7 @@
 // @todo UDP logging
 // @todo Config file?
 // @todo status update to server?
+// @todo Have got to clamp set_temp on server!
 #include <Arduino.h>
 #include <esp_sntp.h>
 
@@ -354,7 +354,7 @@ void loop() {
 
   if ( loop_cntr % 100/DELAY )
   {
-    update_temp_tset_display(temp_fahren, humidity);
+    update_temp_humid_display(temp_fahren, humidity);
   }
 
   if (loop_cntr % (20000/DELAY) == 0)
@@ -408,7 +408,7 @@ void loop() {
           float outside_temp = json_doc["subdevs"]["bme280"]["state"]["temp"];
           float humid = json_doc["subdevs"]["bme280"]["state"]["humid"];
           float baro = json_doc["subdevs"]["bme280"]["state"]["baro"];
-          Serial.printf("Outside temp: %3.1f humid: %2.1f, baro: %2.1f\n", outside_temp, humid, baro);
+//          Serial.printf("Outside temp: %3.1f humid: %2.1f, baro: %2.1f\n", outside_temp, humid, baro);
           update_outside_temp(outside_temp, humid, baro);
       }
     }
@@ -432,7 +432,7 @@ void loop() {
       else
       {
           float family_room_temp = json_doc["subdevs"]["ds18b20"]["state"]["temp"];
-          Serial.printf("Family room temp: %3.1f\n", family_room_temp);
+//          Serial.printf("Family room temp: %3.1f\n", family_room_temp);
           update_fam_room_temp(family_room_temp);
       }
     }

@@ -23,6 +23,7 @@ static lv_obj_t *time_label = nullptr;
 static lv_obj_t *date_label = nullptr;
 static lv_obj_t *meter = nullptr;
 static lv_obj_t *temp_label = nullptr;
+static lv_obj_t *humid_label = nullptr;
 static lv_obj_t *tset_label = nullptr;
 static lv_obj_t *battery_label = nullptr;
 static lv_obj_t *btn_label = nullptr;
@@ -99,7 +100,15 @@ void setup_screen(void)
   lv_obj_set_width(temp_label, 200);
   lv_label_set_text(temp_label, "");
   lv_obj_add_style(temp_label, &style_center, LV_PART_MAIN);
-  lv_obj_align(temp_label, LV_ALIGN_CENTER, 0, 0);
+  lv_obj_align(temp_label, LV_ALIGN_CENTER, 0, -6);
+  // Current humidity
+  humid_label = lv_label_create(lv_scr_act());
+  lv_obj_set_width(humid_label, 100);
+  lv_label_set_text(humid_label, "");
+  lv_obj_add_style(humid_label, &style_center, LV_PART_MAIN);
+  lv_obj_set_style_text_font(humid_label, &lv_font_montserrat_18, LV_PART_MAIN);
+  lv_obj_align_to(humid_label, temp_label, LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
+
 
   // Temperature setting, bottom middle
   tset_label = lv_label_create(lv_scr_act());
@@ -218,17 +227,20 @@ void update_fam_room_temp(const float temp)
   lv_label_set_text(fr_temp_label, temps);
 } // update_fam_room_temp()
 
-void update_temp_tset_display(float temp_fahren, float humid)
+void update_temp_humid_display(float temp_fahren, float humid)
 {
 
-  char tsets[8] = "";
+  char tmp_str[8] = "";
   static int prev_temp = 0;
   // Update when there is any change of 0.1 degree
   int curr_temp = static_cast<int>(temp_fahren*10.0+0.5);
   if ( curr_temp != prev_temp )
   {
-    snprintf(tsets, sizeof(tsets), "%2.1f", temp_fahren);
-    lv_label_set_text(temp_label, tsets);
+    snprintf(tmp_str, sizeof(tmp_str), "%2.1f", temp_fahren);
+    lv_label_set_text(temp_label, tmp_str);
+    snprintf(tmp_str, sizeof(tmp_str), "%3.0f%%", humid);
+    lv_label_set_text(humid_label, tmp_str);
+
 
     lv_anim_set_var(&a, temp_indic);
     lv_anim_set_time(&a, 500);
