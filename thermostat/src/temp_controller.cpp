@@ -4,6 +4,11 @@
 #include "screen1.h"
 #include <ESP32Encoder.h>
 
+void TempController::init()
+{
+  // Update the encoder position based on the new set temp.
+  _encoder.setCount(_temp_to_count(_set_temp));
+} // init()
 
 bool TempController::update()
 {
@@ -23,11 +28,11 @@ bool TempController::update()
 
     oldPosition = newPosition;
     Serial.println("Position: " + String(newPosition));
-    if ( newPosition > MAX_SAFE_TEMP )
-      newPosition = MAX_SAFE_TEMP;
-    else if ( newPosition < MIN_SAFE_TEMP )
-      newPosition = MIN_SAFE_TEMP;
-    _set_temp = newPosition/10.0;
+    if ( _count_to_temp(newPosition) > MAX_SAFE_TEMP )
+      newPosition = _temp_to_count(MAX_SAFE_TEMP);
+    else if ( _count_to_temp(newPosition) < MIN_SAFE_TEMP )
+      newPosition = _temp_to_count(MIN_SAFE_TEMP);
+    _set_temp = _count_to_temp(newPosition);
   }
   else if ( _position_changing )
   {
@@ -56,7 +61,7 @@ bool TempController::update()
   }
 
   // Update the encoder position based on the new set temp.
-  _encoder.setCount(static_cast<int64_t>(_set_temp*10.0+0.5));
+  _encoder.setCount(_temp_to_count(_set_temp));
 
   // Update the display with the set temp
   if ( _display != nullptr )

@@ -102,10 +102,13 @@ void IRAM_ATTR wdt_ISR()
 
 /////////////////////////////////////////////
 // Living room temperature controller
-static const unsigned LR_TEMP_CTRLR_UPDATE_MS = 100; // Update period in milliseconds
-static const unsigned LR_TEMP_CTRLR_SRVR_UPDATE_MS = 13000; // Update from server period in milliseconds
+static const unsigned LR_TEMP_CTRLR_UPDATE_MS = 100; ///< Update period in milliseconds
+static const unsigned LR_TEMP_CTRLR_SRVR_UPDATE_MS = 13000; ///< Update from server period in milliseconds
+static const float INITIAL_SET_TEMP = 68.0; ///<  Initial temperature to set controller to
+static const float ENCODER_MULT = 2.0; ///< Two clicks per detent
+static const char LR_TEMP_CONTROLLER_NAME[] = "lr_temp"; ///< Name of controller on server.
 TempController lr_temp_controller(LR_TEMP_CTRLR_UPDATE_MS, LR_TEMP_CTRLR_SRVR_UPDATE_MS,
-  encoder, &lr_set_temp_DE);
+  encoder, INITIAL_SET_TEMP, ENCODER_MULT, LR_TEMP_CONTROLLER_NAME, &lr_set_temp_DE);
 
 /////////////////////////////////////////////
 // PIR Sensor
@@ -205,6 +208,8 @@ void setup()
 #else
   tft.setTouchCalibrate( TOUCH_CAL_DATA );
 #endif
+
+  lr_temp_controller.init();
 
   String LVGL_Arduino = String("LVGL Version: V") + lv_version_major() + "." + lv_version_minor() + "." + lv_version_patch();
 
