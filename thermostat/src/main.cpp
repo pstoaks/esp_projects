@@ -36,6 +36,13 @@ static const unsigned ENC1_Q2 = 25;
 #else
 #include "lovyan_gfx_setup.h"
 #endif
+
+#define CALIBRATE true
+#if CALIBRATE
+#include "lvgl_tc/lv_tc.h"
+#include "lvgl_tc/lv_tc_screen.h"
+#include "lvgl_tc/esp_nvs_tc.h"
+#endif
 #include "screen1.h"
 #include <SD.h>
 #include <FS.h>
@@ -62,7 +69,7 @@ static const int SCREEN_HEIGHT = TFT_WIDTH;
 
 static const unsigned TFT_BACKLIGHT = 5U;
 static const unsigned SD_CS = 13U;
-static uint16_t TOUCH_CAL_DATA[8] = { 600, 720, 3650, 3650, 1 };
+static uint16_t TOUCH_CAL_DATA[8] = { 63, 164, 9667, 54100, 56300, 11700, 200, 450 };// { 416, 350, 3900, 3888, 0 };
 
 // LVGL Stuff
 static lv_disp_draw_buf_t draw_buf;
@@ -96,7 +103,7 @@ void setup_button_handler()
 void IRAM_ATTR wdt_ISR()
 {
    // Put device into a safe state, then reset.
-   
+
    reset_module(); // Defined in esp32_wdt.h
 } // wdt_ISR()
 
@@ -174,6 +181,18 @@ static String card_type(uint8_t cardType)
 // const char* ntpServer = "time.google.com";
 const char* ntpServer = "pool.ntp.org";
 
+#if CALIBRATE
+static bool Calibrated = false;
+void start_application()
+{
+  Calibrated = true;
+}
+void tc_finish_cb(lv_event_t *event)
+{
+  start_application(); /* Implement this */
+}
+#endif
+
 void setup() 
 {
   Serial.begin(115200);
@@ -200,16 +219,17 @@ void setup()
   digitalWrite(SD_CS, HIGH);
   Serial.println("TFT pins have been setup");
 
+  // Initialize touch display and LVGL
   tft.begin();
   tft.setRotation(1);
   tft.setBrightness(200); // 0 - 255?
+#if !CALIBRATE
 #ifdef ESPI
   ft.setTouch( TOUCH_CAL_DATA );
 #else
   tft.setTouchCalibrate( TOUCH_CAL_DATA );
 #endif
-
-  lr_temp_controller.init();
+#endif
 
   String LVGL_Arduino = String("LVGL Version: V") + lv_version_major() + "." + lv_version_minor() + "." + lv_version_patch();
 
@@ -227,14 +247,35 @@ void setup()
   disp_drv.draw_buf = &draw_buf;
   lv_disp_drv_register( &disp_drv );
 
-  /*Initialize the (dummy) input device driver*/
+  /*Initialize the input device driver*/
   static lv_indev_drv_t indev_drv;
+  #if CALIBRATE
+  lv_tc_indev_drv_init(&indev_drv, my_touchpad_read);
+  lv_tc_register_coeff_save_cb(esp_nvs_tc_coeff_save_cb);
+  #else
   lv_indev_drv_init( &indev_drv );
   indev_drv.type = LV_INDEV_TYPE_POINTER;
   indev_drv.read_cb = my_touchpad_read;
+  #endif
   lv_indev_drv_register( &indev_drv );
 
+  #if CALIBRATE
+  if ( !esp_nvs_tc_coeff_init() )
+  {
+    lv_obj_t *tCScreen = lv_tc_screen_create();
+    lv_obj_add_event_cb(tCScreen, tc_finish_cb, LV_EVENT_READY, NULL);
+    lv_disp_load_scr(tCScreen);
+    lv_tc_screen_start(tCScreen);
+  }
+  else
+  {
+    start_application();
+  }
+#endif
+
   Serial.println("TFT and LVGL has been set up");
+
+  lr_temp_controller.init();
 
   pinMode(DHTPIN, INPUT_PULLUP);
   dht.begin();
@@ -267,7 +308,7 @@ void setup()
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(SSID, WPA_PASSWD);
-   
+
   while ( WiFi.status() != WL_CONNECTED )
   {
     delay(500);
@@ -280,13 +321,10 @@ void setup()
   #define PST_OFFSET -8*3600
   configTime(PST_OFFSET, DST_OFFSET, ntpServer);
 
-  // Initialize GUI
-  setup_screen();
-
   // This has to be the last thing in setup()!
   initialize_wdt(5000, &wdt_ISR); // 5000 msec
 
-  } // setup()
+} // setup()
 
 void loop() {
   static unsigned loop_cntr = 1; // We start at 1 so that not all handlers work at startup causing a wdt timeout.
@@ -302,7 +340,7 @@ void loop() {
     on = !on;
   }
 #if 0
-  if ( loop_cntr & (250/DELAY) )
+  if ( loop_cntr % (1000/DELAY) == 0 )
   {
     // Get and report touch
     uint16_t x, y;
@@ -311,135 +349,149 @@ void loop() {
     Serial.printf("TFT Touch Raw: (%i, %i)\n", x, y);
   }
 #endif
-  static float humidity = 0.0;
-  static float temp_fahren = 0.0;
-  if (loop_cntr % (15000/DELAY) == 0)
-  {
-    static const float TEMP_CORR = -3.0; // Temperature correction. Not sure it's constant.
-    // Reading temperature or humidity takes about 250 milliseconds!
-    // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-    float h = dht.readHumidity();
-    // Read temperature as Fahrenheit (isFahrenheit = true)
-    float t = dht.readTemperature(true);
 
-    // Check if any reads failed and exit early (to try again).
-    if (isnan(h) || isnan(t)) 
+  if ( Calibrated )
+  {
+    // Do the loop!
     {
-      Serial.println(F("Failed to read from DHT sensor!"));
-    }
-    else
-    {
-      humidity = h;
-      temp_fahren = t + TEMP_CORR;
-#if 0
-      // Compute heat index in Fahrenheit (the default)
-      float hif = dht.computeHeatIndex(temp_fahren, humidity);
-
-      Serial.println(String("Temp: ") + String(temp_fahren) + "°F  " + String(humidity) + "%");
-      Serial.print(F("Heat index: "));
-      Serial.print(hif);
-      Serial.println(F(" °F"));
-#endif
-    }
-  }
-
-  // Perform the update on the living room temperature controller.
-  lr_temp_controller.update();
-
-  // Check the encoder pushbutton
-  if ((loop_cntr % (500/DELAY) == 0) && !digitalRead(ENC1_PB))
-  {
-    Serial.println("Pressed : Button Cnt: " + String(button_cnt));
-  }
-
-  if ( loop_cntr % 100/DELAY )
-  {
-    update_temp_humid_display(temp_fahren, humidity);
-  }
-
-  if (loop_cntr % (20000/DELAY) == 0)
-  {
-    // Read light level
-    auto light_level = analogRead(LIGHT_PIN);
-    Serial.println("Light: " + String(light_level));
-  }
-
-  static int last_state = 0;
-  if (loop_cntr % (999/DELAY) == 0)
-  {
-    // Read the PIR sensor
-    int cur_state = digitalRead(PIR_PIN);
-    if ( cur_state != last_state )
-    {
-      if ( cur_state == 1 )
-        Serial.println("Motion detected!");
-      last_state = cur_state;
-    }
-  }
-
-  static bool synch_completed = false;
-
-  // Update the time label in the GUI
-  if ( synch_completed && ( loop_cntr % (5000/DELAY) == 0 ) )
-  {
-    update_time_label();
-  }
-  else
-  {
-    if ( sntp_get_sync_status() == SNTP_SYNC_STATUS_COMPLETED )
-      synch_completed = true;
-  }
-
-  // Update the outside temperature
-  if ( loop_cntr % (60000/DELAY) == 0 )
-  {
-    String json;
-    if ( http_get("/device?dev_id=ESP_F803", "", json) )
-    {
-//      Serial.println("\n\nOutside temp sensor: " + json);
-
-      DeserializationError error = deserializeJson(json_doc, json);
-      if ( error )
+      static bool FirstTime {true};
+      if ( FirstTime )
       {
-        Serial.printf("JSON Decoding Error: %s\n", error.c_str());
+        // Initialize GUI
+        setup_screen();
+        FirstTime = false;
+      }
+    }
+
+    static float humidity = 0.0;
+    static float temp_fahren = 0.0;
+    if (loop_cntr % (15000/DELAY) == 0)
+    {
+      static const float TEMP_CORR = -3.0; // Temperature correction. Not sure it's constant.
+      // Reading temperature or humidity takes about 250 milliseconds!
+      // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
+      float h = dht.readHumidity();
+      // Read temperature as Fahrenheit (isFahrenheit = true)
+      float t = dht.readTemperature(true);
+
+      // Check if any reads failed and exit early (to try again).
+      if (isnan(h) || isnan(t))
+      {
+        Serial.println(F("Failed to read from DHT sensor!"));
       }
       else
       {
-          float outside_temp = json_doc["subdevs"]["bme280"]["state"]["temp"];
-          float humid = json_doc["subdevs"]["bme280"]["state"]["humid"];
-          float baro = json_doc["subdevs"]["bme280"]["state"]["baro"];
-//          Serial.printf("Outside temp: %3.1f humid: %2.1f, baro: %2.1f\n", outside_temp, humid, baro);
-          update_outside_temp(outside_temp, humid, baro);
+        humidity = h;
+        temp_fahren = t + TEMP_CORR;
+  #if 0
+        // Compute heat index in Fahrenheit (the default)
+        float hif = dht.computeHeatIndex(temp_fahren, humidity);
+
+        Serial.println(String("Temp: ") + String(temp_fahren) + "°F  " + String(humidity) + "%");
+        Serial.print(F("Heat index: "));
+        Serial.print(hif);
+        Serial.println(F(" °F"));
+  #endif
       }
     }
-    else
-      Serial.println("Get outside temperature failed.");
-  }
 
-  // Update the family room temperature
-  if ( loop_cntr % (58000/DELAY) == 0 )
-  {
-    String json;
-    if ( http_get("/device?dev_id=ESP_F444", "", json) )
+    // Perform the update on the living room temperature controller.
+    lr_temp_controller.update();
+
+    // Check the encoder pushbutton
+    if ((loop_cntr % (500/DELAY) == 0) && !digitalRead(ENC1_PB))
     {
-//      Serial.println("\n\nFamily room temp sensor: " + json);
+      Serial.println("Pressed : Button Cnt: " + String(button_cnt));
+    }
 
-      DeserializationError error = deserializeJson(json_doc, json);
-      if ( error )
+    if ( loop_cntr % 100/DELAY )
+    {
+      update_temp_humid_display(temp_fahren, humidity);
+    }
+
+    if (loop_cntr % (20000/DELAY) == 0)
+    {
+      // Read light level
+      auto light_level = analogRead(LIGHT_PIN);
+      Serial.println("Light: " + String(light_level));
+    }
+
+    static int last_state = 0;
+    if (loop_cntr % (999/DELAY) == 0)
+    {
+      // Read the PIR sensor
+      int cur_state = digitalRead(PIR_PIN);
+      if ( cur_state != last_state )
       {
-        Serial.printf("JSON Decoding Error: %s\n", error.c_str());
+        if ( cur_state == 1 )
+          Serial.println("Motion detected!");
+        last_state = cur_state;
+      }
+    }
+
+    static bool synch_completed = false;
+
+    // Update the time label in the GUI
+    if ( synch_completed && ( loop_cntr % (5000/DELAY) == 0 ) )
+    {
+      update_time_label();
+    }
+    else
+    {
+      if ( sntp_get_sync_status() == SNTP_SYNC_STATUS_COMPLETED )
+        synch_completed = true;
+    }
+
+    // Update the outside temperature
+    if ( loop_cntr % (60000/DELAY) == 0 )
+    {
+      String json;
+      if ( http_get("/device?dev_id=ESP_F803", "", json) )
+      {
+  //      Serial.println("\n\nOutside temp sensor: " + json);
+
+        DeserializationError error = deserializeJson(json_doc, json);
+        if ( error )
+        {
+          Serial.printf("JSON Decoding Error: %s\n", error.c_str());
+        }
+        else
+        {
+            float outside_temp = json_doc["subdevs"]["bme280"]["state"]["temp"];
+            float humid = json_doc["subdevs"]["bme280"]["state"]["humid"];
+            float baro = json_doc["subdevs"]["bme280"]["state"]["baro"];
+  //          Serial.printf("Outside temp: %3.1f humid: %2.1f, baro: %2.1f\n", outside_temp, humid, baro);
+            update_outside_temp(outside_temp, humid, baro);
+        }
       }
       else
-      {
-          float family_room_temp = json_doc["subdevs"]["ds18b20"]["state"]["temp"];
-//          Serial.printf("Family room temp: %3.1f\n", family_room_temp);
-          update_fam_room_temp(family_room_temp);
-      }
+        Serial.println("Get outside temperature failed.");
     }
-    else
-      Serial.println("Get family room temperature failed.");
-  }
 
+    // Update the family room temperature
+    if ( loop_cntr % (58000/DELAY) == 0 )
+    {
+      String json;
+      if ( http_get("/device?dev_id=ESP_F444", "", json) )
+      {
+  //      Serial.println("\n\nFamily room temp sensor: " + json);
+
+        DeserializationError error = deserializeJson(json_doc, json);
+        if ( error )
+        {
+          Serial.printf("JSON Decoding Error: %s\n", error.c_str());
+        }
+        else
+        {
+            float family_room_temp = json_doc["subdevs"]["ds18b20"]["state"]["temp"];
+  //          Serial.printf("Family room temp: %3.1f\n", family_room_temp);
+            update_fam_room_temp(family_room_temp);
+        }
+      }
+      else
+        Serial.println("Get family room temperature failed.");
+    }
+  }
   // Let the GUI do it's work
   lv_timer_handler();
 
@@ -467,7 +519,7 @@ void my_touchpad_read( lv_indev_drv_t * indev_driver, lv_indev_data_t * data )
 {
     uint16_t touchX, touchY;
 
-    bool touched = tft.getTouch( &touchX, &touchY, 600 );
+    bool touched = tft.getTouch( &touchX, &touchY); //, 0 /*600*/ );
 
     if( !touched )
     {
