@@ -1,3 +1,4 @@
+// @todo Fix bug that allows a failed server call to set the temperature to 50.
 // @todo Screen calibration and lamp button
 // @todo Continue refactoring
 // @todo Use motion detection to trigger display update?
@@ -31,6 +32,10 @@ static const unsigned ENC1_Q2 = 25;
 // SD card.
 // https://www.youtube.com/watch?v=rq5yPJbX_uk&ab_channel=XTronical
 //
+// Touch screen calibration: https://www.analog.com/en/technical-articles/an-easytounderstand-explanation-of-calibration-in-touchscreen-systems.html
+// The touch screen calibration code used here is from: https://github.com/jakpaul/lvgl_touch_calibration
+//
+//
 // User Setup comes from; TFT_eSPI/User_Setups/User_Setup.h
 #include <TFT_eSPI.h>
 #else
@@ -39,6 +44,7 @@ static const unsigned ENC1_Q2 = 25;
 
 #define CALIBRATE true
 #if CALIBRATE
+// From: https://github.com/jakpaul/lvgl_touch_calibration
 #include "lvgl_tc/lv_tc.h"
 #include "lvgl_tc/lv_tc_screen.h"
 #include "lvgl_tc/esp_nvs_tc.h"
@@ -446,7 +452,7 @@ void loop() {
     if ( loop_cntr % (60000/DELAY) == 0 )
     {
       String json;
-      if ( http_get("/device?dev_id=ESP_F803", "", json) )
+      if ( http_get_from_server("/device?dev_id=ESP_F803", "", json) )
       {
   //      Serial.println("\n\nOutside temp sensor: " + json);
 
@@ -472,7 +478,7 @@ void loop() {
     if ( loop_cntr % (58000/DELAY) == 0 )
     {
       String json;
-      if ( http_get("/device?dev_id=ESP_F444", "", json) )
+      if ( http_get_from_server("/device?dev_id=ESP_F444", "", json) )
       {
   //      Serial.println("\n\nFamily room temp sensor: " + json);
 

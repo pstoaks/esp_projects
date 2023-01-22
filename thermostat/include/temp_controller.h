@@ -34,8 +34,8 @@ public:
 static constexpr unsigned POSITION_CHANGING_MS = 2000;
 
 // Input temperature values are clamped to the following values.
-static constexpr unsigned MIN_SAFE_TEMP = 50.0; // Minimum safe temp in encoder counts.
-static constexpr unsigned MAX_SAFE_TEMP = 75.0; // Maximum safe temp in encoder counts.
+static constexpr float MIN_SAFE_TEMP = 50.0; // Minimum safe temp in degrees.
+static constexpr float MAX_SAFE_TEMP = 75.0; // Maximum safe temp in degrees.
 
 /// @class TempController
 ///
@@ -100,7 +100,7 @@ private:
   /// @return The temperature represented by the count rounded to tenths.
   inline float _count_to_temp(int64_t cnt)
   {
-    return static_cast<float>(static_cast<int>(cnt/_multiplier*10.0+0.5)/10.0);
+    return static_cast<float>(static_cast<int>(cnt/_multiplier*2.0+0.5)/2.0);
   } // _count_to_temp()
 
 }; // class TempController

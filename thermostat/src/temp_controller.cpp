@@ -56,7 +56,11 @@ bool TempController::update()
   if ( !_position_changing && _temp_srvr_req_tmr.expired() )
   {
     // Get the current temperature here.
-    _set_temp = get_controller_set_temp("lr_temp");
+    auto set_t = get_controller_set_temp("lr_temp");
+    if ( set_t > 0.0 )
+    {
+      _set_temp = set_t;
+    }
     _temp_srvr_req_tmr.reset();
   }
 

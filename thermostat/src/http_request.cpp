@@ -11,6 +11,10 @@
 // Use https://arduinojson.org/v6/assistant to compute the capacity.
 StaticJsonDocument<3000> json_doc;
 
+// Static shared HTTP request buffer. Note that only one HTTP request
+// can be in progress at any one time.
+static char HttpRequestBuf[2048];
+
 static constexpr char CrLf[] = "\r\n";
 
 const Config CTRL = {
@@ -20,9 +24,32 @@ const Config CTRL = {
 }; // CTRL global Config
 
 
-bool http_get(String const& url, String const& body, String& data)
+static bool process_response(WiFiClient &client, String& data);
+
+bool http_request(const IPAddress& ip_addr, unsigned port, const char* method,
+  const char* url, const char* body, String& data)
 {
-   String httpr =
+  snprintf(HttpRequestBuf, sizeof(HttpRequestBuf),
+    "%s %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: SSW_IOT Device\r\nAccept: application/json\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n%s",
+    method, url, ip_addr.toString(), strlen(body), body);
+
+  WiFiClient client;
+  Serial.printf("HTTP_Request: %s\n\n", HttpRequestBuf);
+  if ( !client.connect( ip_addr, port) )
+  {
+    Serial.println("Connection failed.\n");
+    return false;
+  }
+
+  // If we have successfully connected, send our request:
+  client.print(HttpRequestBuf);
+
+  return process_response(client, data);
+
+} // http_request()
+
+/*
+  String httpr =
       "GET " + url + " HTTP/1.1" + CrLf +
       "Host: " + CTRL.ctrl_server_ip.toString() + CrLf +
       "User-Agent: SSW_IOT Device" + CrLf +
@@ -31,22 +58,13 @@ bool http_get(String const& url, String const& body, String& data)
       "Content-Length: " + String(body.length()) + CrLf +
       CrLf +
       body;
+*/
+bool http_get_from_server(const char* url, const char* body, String& data)
+{
 
-    WiFiClient client;
-    Serial.println("Connecting to control server.");
-    Serial.println(String("Connecting to ")+CTRL.ctrl_server_ip.toString()+String(":")+String(CTRL.ctrl_server_port));
-    if ( !client.connect( CTRL.ctrl_server_ip, CTRL.ctrl_server_port) )
-    {
-        Serial.println("Connection failed.");
-        return false;
-    }
-    
-    // If we have successfully connected, send our request:
-    client.print(httpr);
+  return http_request(CTRL.ctrl_server_ip, CTRL.ctrl_server_port, "GET", url, body, data);
 
-    return process_response(client, data);
-
-} // get()
+} // http_get_from_server()
 
 bool process_response(WiFiClient &client, String& data)
 {
@@ -63,7 +81,7 @@ bool process_response(WiFiClient &client, String& data)
   if (!client.available())
   {
     // Timed out
-    Serial.println("WARNING: Post to server timed out!");
+    Serial.println("WARNING: HTTP Request timed out!");
     return false;
   }
   else
@@ -89,6 +107,7 @@ bool process_response(WiFiClient &client, String& data)
           resp_ok = false;
           Serial.println("Request Failed.  Return Code:");
           Serial.println(line);
+          Serial.println();
         }
       }
       else if (resp_ok && line.length() < 2)
@@ -96,31 +115,28 @@ bool process_response(WiFiClient &client, String& data)
         // next line should be the body.
         data = client.readStringUntil('\r');
         data.trim();
-        Serial.println(String("Response Body: ") + data);
+//        Serial.println(String("Response Body: ") + data);
       }
     }
   }
 
   return resp_ok;
-}
+} // process_response()
 
 /// @brief Sends a new set_temp value to the server for the given controller
 /// @param dev_id Controller ID
 /// @param set_temp In/Out parameter. Gets the value returned by the server.
-void send_controller_set_temp(String const& dev_id, float &set_temp)
+void send_controller_set_temp(const char* dev_id, float &set_temp)
 {
     static const char URL_TEMPLATE[] {"/controller/set_temp?dev_id=%s&set_temp=%3.1f"};
     static constexpr unsigned int MAX_URL_LEN = sizeof(URL_TEMPLATE)+15;
     char get_url[MAX_URL_LEN] {""};
     String json;
 
-    snprintf(get_url, MAX_URL_LEN, URL_TEMPLATE, dev_id.c_str(), set_temp);
-    Serial.println(get_url);
+    snprintf(get_url, sizeof(get_url), URL_TEMPLATE, dev_id, set_temp);
 
-    if ( http_get(get_url, "", json) )
+    if ( http_get_from_server(get_url, "", json) )
     {
-//      Serial.println("\n\nLiving room controller: " + json);
-
       // Set the display and the position based on the return value.
       DeserializationError error = deserializeJson(json_doc, json);
       if ( error )
@@ -130,38 +146,69 @@ void send_controller_set_temp(String const& dev_id, float &set_temp)
       else
       {
           set_temp = json_doc["subdevs"]["controller"]["state"]["set_temp"];
-          Serial.printf("Living room set temp: %3.1f\n", set_temp);
+          Serial.printf("Controller set temp: %3.1f\n", set_temp);
       }
     }
     else
-      Serial.println("send_controller_set_temp() failed.");
+      Serial.println("send_controller_set_temp() failed.\n");
 } // send_controller_set_temp()
 
 /// @brief Gets the controller's set temp
 /// @param dev_id Controller ID
-/// @return Returns the current set temperature.
-float get_controller_set_temp(String const& dev_id)
+/// @return Returns the current set temperature or a negative number if
+///    the server request is not succesful.
+float get_controller_set_temp(const char* dev_id)
 {
-    String json;
-    float rtn = 0.0;
-    if ( http_get("/device?dev_id=lr_temp", "", json) )
-    {
-//      Serial.println("\n\nLiving room controller: " + json);
+  float rtn = -1.0;
+  if ( get_device_state(dev_id) )
+  {
+    rtn = json_doc["subdevs"]["controller"]["state"]["set_temp"];
+    Serial.printf("Controller set temp: %3.1f\n", rtn);
+  }
 
-      DeserializationError error = deserializeJson(json_doc, json);
-      if ( error )
-      {
-        Serial.printf("JSON Decoding Error: %s\n", error.c_str());
-      }
-      else
-      {
-          rtn = json_doc["subdevs"]["controller"]["state"]["set_temp"];
-          Serial.printf("Living room set temp: %3.1f\n", rtn);
-      }
-    }
-    else
-      Serial.println("Get living room set temperature failed.");
-
-    return rtn;
+  return rtn;
 } // get_controller_set_temp()
 
+/// @brief Queries the server for the given device and leaves the response in json_doc
+/// @param dev_id : Device being queried for.
+/// @return true for success
+bool get_device_state(const char* dev_id)
+{
+  bool rtn = false;
+  static const char URL_TEMPLATE[] {"/device?dev_id=%s"};
+  static constexpr unsigned int MAX_URL_LEN = sizeof(URL_TEMPLATE)+15;
+  char get_url[MAX_URL_LEN] {""};
+  String json;
+
+  snprintf(get_url, sizeof(get_url), URL_TEMPLATE, dev_id);
+  Serial.println(get_url);
+  if ( http_get_from_server(get_url, "", json) )
+  {
+    DeserializationError error = deserializeJson(json_doc, json);
+    if ( error )
+    {
+      Serial.printf("JSON Decoding Error: %s\n", error.c_str());
+    }
+    else
+    {
+      rtn = true;
+    }
+  }
+  else
+    Serial.printf("Request for %s failed.\n\n", dev_id);
+
+  return rtn; // Data is in json_doc
+} // get_device_state()
+
+bool set_relay_state(const IPAddress& ip_addr, const char dev_id[], bool state)
+{
+  // http://192.168.0.24/relay_1/on (ESP_BE4E family room colored lights)
+  // http://192.168.0.25/relay_1/on (ESP_2255 living room corner light)
+
+  return true;
+} // set_relay_state()
+
+bool get_relay_state(const char dev_id[], IPAddress& ip_addr, size_t ip_buf_len, bool &state)
+{
+  return true;
+} // get_relay_state()
