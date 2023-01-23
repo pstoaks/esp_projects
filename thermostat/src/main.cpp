@@ -96,12 +96,12 @@ void buttonISR(void)
    button_cnt++;
 } // buttonISR()
 
-void setup_button_handler()
+void setup_encoder_button_handler()
 {
    button_cnt = 0U; // file static volatile
    pinMode(ENC1_PB, INPUT_PULLUP);
    attachInterrupt(ENC1_PB, buttonISR, FALLING);
-} // setup_button_handler()
+} // setup_encoder_button_handler()
 
 // Include our home-rolled WDT timer
 #include "esp32_wdt.h"
@@ -199,6 +199,19 @@ void tc_finish_cb(lv_event_t *event)
 }
 #endif
 
+void lamp_btn_event_handler(lv_event_t* event)
+{
+  if (event->code == LV_EVENT_CLICKED)
+  {
+//    Serial.println("Clicked");
+  }
+  else if(event->code == LV_EVENT_VALUE_CHANGED)
+  {
+//    Serial.println("Toggled");
+    set_relay_state(LAMP_1, get_lamp_button_state());
+  }
+} // lamp_btn_event_handler()
+
 void setup() 
 {
   Serial.begin(115200);
@@ -279,16 +292,14 @@ void setup()
   }
 #endif
 
-  Serial.println("TFT and LVGL has been set up");
-
   lr_temp_controller.init();
 
   pinMode(DHTPIN, INPUT_PULLUP);
   dht.begin();
   Serial.println("DHT has been setup");
 
-  setup_button_handler();
-  Serial.println("Button has been setup");
+  setup_encoder_button_handler(); // Encoder
+  Serial.println("Encoder button has been setup");
 
  // SD Card
   if ( SD.begin(SD_CS) ) 
@@ -328,7 +339,7 @@ void setup()
   configTime(PST_OFFSET, DST_OFFSET, ntpServer);
 
   // This has to be the last thing in setup()!
-  initialize_wdt(5000, &wdt_ISR); // 5000 msec
+  initialize_wdt(10000, &wdt_ISR); // 10000 msec
 
 } // setup()
 
@@ -365,6 +376,11 @@ void loop() {
       {
         // Initialize GUI
         setup_screen();
+
+        set_lamp_button_event_handler(lamp_btn_event_handler);
+
+        Serial.println("TFT and LVGL has been set up");
+
         FirstTime = false;
       }
     }
@@ -403,6 +419,16 @@ void loop() {
 
     // Perform the update on the living room temperature controller.
     lr_temp_controller.update();
+
+    // Check the lamp relay state
+    if ( loop_cntr % (5000/DELAY) == 0)
+    {
+      bool state {false};
+      if ( get_relay_state(LAMP_1, state) )
+      {
+        set_lamp_button_state(state);
+      }
+    }
 
     // Check the encoder pushbutton
     if ((loop_cntr % (500/DELAY) == 0) && !digitalRead(ENC1_PB))
@@ -525,7 +551,7 @@ void my_touchpad_read( lv_indev_drv_t * indev_driver, lv_indev_data_t * data )
 {
     uint16_t touchX, touchY;
 
-    bool touched = tft.getTouch( &touchX, &touchY); //, 0 /*600*/ );
+    bool touched = tft.getTouch( &touchX, &touchY);
 
     if( !touched )
     {
@@ -539,7 +565,7 @@ void my_touchpad_read( lv_indev_drv_t * indev_driver, lv_indev_data_t * data )
         data->point.x = touchX;
         data->point.y = touchY;
 
-        Serial.printf( "Touch (%d, %d)\n", touchX, touchY );
+//        Serial.printf( "Touch (%d, %d)\n", touchX, touchY );
     }
 } // my_touchpad_read()
 

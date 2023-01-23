@@ -13,12 +13,15 @@ extern StaticJsonDocument<3000> json_doc;
 struct Config
 {
   public:
+  const char* dev_id;             ///< Device name
   IPAddress   ctrl_server_ip;     ///< Server IP address
   uint16_t    ctrl_server_port;   ///< Server port
   uint32_t    comms_timeout;      ///< Comms Timeout in seconds
 }; // Config
 
 extern const Config CTRL; ///< Global configuration instance.
+extern const Config LAMP_1; ///< Lamp 1 is the corner living room lamp
+extern const Config LAMP_2; ///< Lamp 2 is the family room colored lights.
 
 /// @brief Makes an HTTP request of a server and collects the response.
 /// @param ip_addr : The IP address of the server.
@@ -53,4 +56,18 @@ void send_controller_set_temp(const char* dev_id, float &set_temp);
 /// @return Returns the current set temperature or a negative number if
 ///    the server request is not succesful.
 float get_controller_set_temp(const char* dev_id);
+
+/// @brief Sets the relay state for the given device
+/// @param device Config for the device.
+/// @param state ON if true, OFF if false
+/// @return Returns true on success
+bool set_relay_state(const Config& device, bool state);
+
+/// @brief Returns the relay state
+/// @param device: Config for the device
+/// @param state:  Out parameter providing the state. Only valid if return is true
+/// @return true for success, false for failure
+bool get_relay_state(const Config& device, bool &state);
+
+
 

@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <esp_sntp.h>
 
+#include "screen1.h"
+
 #include <lvgl.h>
 #ifdef ESPI
 // https://github.com/Bodmer/TFT_eSPI
@@ -13,8 +15,6 @@
 #else
 #include "lovyan_gfx_setup.h"
 #endif
-
-#include "screen1.h"
 
 static lv_obj_t *outside_temp_label = nullptr;
 static lv_obj_t *outside_baro_label = nullptr;
@@ -40,17 +40,28 @@ static void set_value(void *indic, int32_t v)
   lv_meter_set_indicator_end_value(meter, (lv_meter_indicator_t *)indic, v);
 } // set_value()
 
-static void btn_event_handler(lv_event_t* event)
+void set_lamp_button_event_handler(lv_event_cb_t btn_event_handler)
 {
-  if (event->code == LV_EVENT_CLICKED) 
+  lv_obj_add_event_cb(lamp_btn, btn_event_handler, LV_EVENT_ALL, NULL);
+} // set_lamp_button_event_handler();
+
+bool get_lamp_button_state()
+{
+//  Serial.printf("Lamp button state: %d\n\n", lamp_btn->state);
+  return ( LV_STATE_CHECKED == (lamp_btn->state &  LV_STATE_CHECKED) );
+} // get_lamp_button_state()
+
+void set_lamp_button_state(bool state)
+{
+  if ( state )
   {
-    Serial.println("Clicked");
+    lamp_btn->state |= LV_STATE_CHECKED;
   }
-  else if(event->code == LV_EVENT_VALUE_CHANGED) 
+  else
   {
-    Serial.println("Toggled");
+    lamp_btn->state &= ~LV_STATE_CHECKED;
   }
-} // btn_event_handler()
+} // set_lamp_button_state()
 
 void setup_screen(void) 
 {
@@ -172,7 +183,6 @@ void setup_screen(void)
   ///////////////////////////////////////////////////////////////////////
   // Table lamp button
   lamp_btn = lv_btn_create(lv_scr_act());
-  lv_obj_add_event_cb(lamp_btn, btn_event_handler, LV_EVENT_ALL, NULL);
   lv_obj_align(lamp_btn, LV_ALIGN_BOTTOM_LEFT, 5, -5);
   lv_obj_add_flag(lamp_btn, LV_OBJ_FLAG_CHECKABLE);
   lv_obj_set_height(lamp_btn, LV_SIZE_CONTENT);

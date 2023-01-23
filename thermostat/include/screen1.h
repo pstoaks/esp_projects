@@ -1,6 +1,17 @@
 #pragma once
 
+#include <lvgl.h>
+
 void setup_screen(void);
+
+void set_lamp_button_event_handler(lv_event_cb_t btn_event_handler);
+/// @brief Returns the current lamp button state.
+/// @returns true for checked, false for un-checked
+bool get_lamp_button_state();
+
+/// @brief Set the lamp button state
+/// @param state: true for on, false for off
+void set_lamp_button_state(bool state);
 
 void update_time_label();
 

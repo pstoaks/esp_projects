@@ -11,15 +11,31 @@
 // Use https://arduinojson.org/v6/assistant to compute the capacity.
 StaticJsonDocument<3000> json_doc;
 
-// Static shared HTTP request buffer. Note that only one HTTP request
-// can be in progress at any one time.
-static char HttpRequestBuf[2048];
-
 static constexpr char CrLf[] = "\r\n";
 
 const Config CTRL = {
+  "CtrlServer",                 ///< Device id
   IPAddress(192, 168, 0, 10),   ///< Server IP address
   8000U,                        ///< Server port
+  3000                          ///< Comms Timeout in milliseconds
+}; // CTRL global Config
+
+// @todo These are constants now, but they should really be looked up in the
+//    database on initialization.
+
+// ESP_2255 Living room corner light.
+const Config LAMP_1 = {
+  "ESP_2255",                   ///< Device id
+  IPAddress(192, 168, 0, 25),   ///< Server IP address
+  80U,                          ///< Server port
+  2000                          ///< Comms Timeout in milliseconds
+}; // CTRL global Config
+
+// ESP_B4E Family room clored lights
+const Config LAMP_2 = {
+  "ESP_84E",                    ///< Device id
+  IPAddress(192, 168, 0, 24),   ///< Server IP address
+  80U,                          ///< Server port
   2000                          ///< Comms Timeout in milliseconds
 }; // CTRL global Config
 
@@ -29,8 +45,12 @@ static bool process_response(WiFiClient &client, String& data);
 bool http_request(const IPAddress& ip_addr, unsigned port, const char* method,
   const char* url, const char* body, String& data)
 {
+  // Static shared HTTP request buffer. Note that only one HTTP request
+  // can be in progress at any one time.
+  static char HttpRequestBuf[2048];
+
   snprintf(HttpRequestBuf, sizeof(HttpRequestBuf),
-    "%s %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: SSW_IOT Device\r\nAccept: application/json\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n%s",
+    "%s %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: SSW_IOT Device\r\nAccept: application/json\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n%s\r\n",
     method, url, ip_addr.toString(), strlen(body), body);
 
   WiFiClient client;
@@ -48,17 +68,6 @@ bool http_request(const IPAddress& ip_addr, unsigned port, const char* method,
 
 } // http_request()
 
-/*
-  String httpr =
-      "GET " + url + " HTTP/1.1" + CrLf +
-      "Host: " + CTRL.ctrl_server_ip.toString() + CrLf +
-      "User-Agent: SSW_IOT Device" + CrLf +
-      "Accept: application/json" + CrLf +
-      "Content-Type: application/json" + CrLf +
-      "Content-Length: " + String(body.length()) + CrLf +
-      CrLf +
-      body;
-*/
 bool http_get_from_server(const char* url, const char* body, String& data)
 {
 
@@ -78,7 +87,7 @@ bool process_response(WiFiClient &client, String& data)
     delay(500);
   }
 
-  if (!client.available())
+  if ( !client.available() )
   {
     // Timed out
     Serial.println("WARNING: HTTP Request timed out!");
@@ -86,15 +95,15 @@ bool process_response(WiFiClient &client, String& data)
   }
   else
   {
-    Serial.println("Response received.");
+    // Serial.println("Response received.");
 
     // The reason we don't short circuit on a bad return code
     // is because we want to be able to log the entire response.
-    while (client.available())
+    while ( client.available() )
     {
       String line = client.readStringUntil('\r');
       line.trim();
-      Serial.println(line);
+      // Serial.println(line);
       // Check return code
       if (line.startsWith("HTTP"))
       {
@@ -146,7 +155,7 @@ void send_controller_set_temp(const char* dev_id, float &set_temp)
       else
       {
           set_temp = json_doc["subdevs"]["controller"]["state"]["set_temp"];
-          Serial.printf("Controller set temp: %3.1f\n", set_temp);
+          // Serial.printf("Controller set temp: %3.1f\n", set_temp);
       }
     }
     else
@@ -163,7 +172,7 @@ float get_controller_set_temp(const char* dev_id)
   if ( get_device_state(dev_id) )
   {
     rtn = json_doc["subdevs"]["controller"]["state"]["set_temp"];
-    Serial.printf("Controller set temp: %3.1f\n", rtn);
+    // Serial.printf("Controller set temp: %3.1f\n", rtn);
   }
 
   return rtn;
@@ -176,12 +185,11 @@ bool get_device_state(const char* dev_id)
 {
   bool rtn = false;
   static const char URL_TEMPLATE[] {"/device?dev_id=%s"};
-  static constexpr unsigned int MAX_URL_LEN = sizeof(URL_TEMPLATE)+15;
-  char get_url[MAX_URL_LEN] {""};
+  char get_url[sizeof(URL_TEMPLATE)+15] {""};
   String json;
 
   snprintf(get_url, sizeof(get_url), URL_TEMPLATE, dev_id);
-  Serial.println(get_url);
+  // Serial.println(get_url);
   if ( http_get_from_server(get_url, "", json) )
   {
     DeserializationError error = deserializeJson(json_doc, json);
@@ -200,15 +208,50 @@ bool get_device_state(const char* dev_id)
   return rtn; // Data is in json_doc
 } // get_device_state()
 
-bool set_relay_state(const IPAddress& ip_addr, const char dev_id[], bool state)
+#if 0
+// Not used. Attempts to speak directly to the relay. This doesn't work very well.
+bool set_relay_state_direct(const Config& device, bool state)
 {
-  // http://192.168.0.24/relay_1/on (ESP_BE4E family room colored lights)
-  // http://192.168.0.25/relay_1/on (ESP_2255 living room corner light)
+  const char URL_TEMPLATE[] {"/relay_1/%s"};
+  char url[sizeof(URL_TEMPLATE)+4];
+  String data;
+  snprintf(url, sizeof(url), URL_TEMPLATE, state ? "on" : "off");
+  bool rtn = http_request(device.ctrl_server_ip, device.ctrl_server_port, "GET",
+    url, "", data);
 
-  return true;
+  // Nothing to do with data at this time.
+
+  return rtn;
+} // set_relay_state()
+#endif
+
+bool set_relay_state(const Config& device, bool state)
+{
+  // http://192.168.0.10:8000/relay/set_state?dev_id=ESP_2255&subdev=relay_1&state=on
+  static const char URL_TEMPLATE[] {"/relay/set_state?dev_id=%s&subdev=%s&state=%d"};
+  char url[sizeof(URL_TEMPLATE)+22] {""};
+  String data;
+  snprintf(url, sizeof(url), URL_TEMPLATE, device.dev_id, "relay_1", state ? 1 : 0);
+  bool rtn = http_request(CTRL.ctrl_server_ip, CTRL.ctrl_server_port, "GET",
+    url, "", data);
+
+  if ( !rtn )
+    Serial.println("set_relay_state() failed.");
+
+  // Nothing to do with data at this time.
+
+  return rtn;
 } // set_relay_state()
 
-bool get_relay_state(const char dev_id[], IPAddress& ip_addr, size_t ip_buf_len, bool &state)
+bool get_relay_state(const Config& device, bool &state)
 {
-  return true;
+  bool rtn {false};
+  if ( get_device_state(device.dev_id) )
+  {
+    int _state = json_doc["subdevs"]["relay_1"]["state"]["state"];
+    Serial.printf("Relay state: %d\n\n", _state);
+    state = (1 == _state );
+    rtn = true;
+  }
+  return rtn;
 } // get_relay_state()
