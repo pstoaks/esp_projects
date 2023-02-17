@@ -2,6 +2,9 @@
 // https://danielupshaw.com/openscad-rounded-corners/
 use <rounded_cube.scad>
 
+//todo Need to move cutout in case up 2 mm relative to screen, or screen
+// down 2 mm relative to cutout.
+
 $fn = 80;
 in = 25.4;
 mm = 1.0;
@@ -45,7 +48,7 @@ module assembly(knob_dia, knob_depth)
    depth = 18.0 * mm;
    wall_thick = 1.2 * mm;
 
-   display_y = length - 56 * mm;
+   display_y = length - 60 * mm; // was 56
    PIR_y_offset = length - 70.0 * mm;
 
    knob_y = 43.0 * mm;
@@ -349,7 +352,7 @@ module top_shell(width, length, depth, wall_thick, display_y, knob_offset, knob_
       {
          cylinder(h=40.0, d=littlePIR_dimensions[HOLE_DIA]);
       }
-      
+
       // USB Cutout
       translate([-5, 15.0, 5.0])
       {
@@ -542,7 +545,7 @@ module display()
 module display_window(thick)
 {
    display_win_height = 45.0 * mm;
-   display_win_bottom_offset = 3.3 * mm;
+   display_win_bottom_offset = (2.8) * mm; // 3.3
 
    // display window
    translate([display_win_left_offset, display_win_bottom_offset, 0])
@@ -560,13 +563,13 @@ module display_supports(post_dia, standoff_height)
    hole_depth = 4.0 * mm;
 
    left_offset = 6.8 * mm;
-   bottom_offset = 3.8 * mm;
+   bottom_offset = (2.5) * mm; // 3.8
 
    translate([left_offset, bottom_offset, 0])
    {
       rect_standoff(post_dia, screw_dia, hole_depth, standoff_height, x_pitch, y_pitch);
    }
-      
+
 } // display_supports()
 
 module pcb_supports(post_dia, standoff_height)
