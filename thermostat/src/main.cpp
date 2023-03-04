@@ -106,6 +106,8 @@ void setup_encoder_button_handler()
 // Include our home-rolled WDT timer
 #include "esp32_wdt.h"
 
+#include "timer.h"
+
 void IRAM_ATTR wdt_ISR()
 {
    // Put device into a safe state, then reset.
@@ -241,7 +243,7 @@ void setup()
   // Initialize touch display and LVGL
   tft.begin();
   tft.setRotation(1);
-  tft.setBrightness(200); // 0 - 255?
+  tft.setBrightness(15); // 0 - 255?
 #if !CALIBRATE
 #ifdef ESPI
   ft.setTouch( TOUCH_CAL_DATA );
@@ -349,6 +351,7 @@ void loop() {
 
   feed_wdt();
 
+#if 0
   // LED Blink Code
   if (loop_cntr % (1000/DELAY) == 0) // 1 second
   {
@@ -356,6 +359,7 @@ void loop() {
     digitalWrite(LED_BUILTIN, on ? HIGH : LOW);   // turn the LED on (HIGH is the voltage level)
     on = !on;
   }
+#endif
 #if 0
   if ( loop_cntr % (1000/DELAY) == 0 )
   {
@@ -449,6 +453,7 @@ void loop() {
     }
 
     static int last_state = 0;
+    static bool motion_detected = false;
     if (loop_cntr % (999/DELAY) == 0)
     {
       // Read the PIR sensor
@@ -456,9 +461,26 @@ void loop() {
       if ( cur_state != last_state )
       {
         if ( cur_state == 1 )
+        {
           Serial.println("Motion detected!");
+        }
         last_state = cur_state;
+        motion_detected = ( cur_state == 1 );
       }
+    }
+
+    static SSW::Timer motion_timeout(10000);
+    if ( !motion_detected )
+    {
+      if ( motion_timeout.expired() )
+      {
+        tft.setBrightness(15);
+      }
+    }
+    else
+    {
+      tft.setBrightness(220); // 0 - 255?
+      motion_timeout.reset();
     }
 
     static bool synch_completed = false;
