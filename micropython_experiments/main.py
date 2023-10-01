@@ -15,6 +15,7 @@
 # SERVER PATHS
 #  http://192.168.0.122/leds?bright=10  Set brightness
 #  http://192.168.0.122/leds?bright=20&series=winter  Set brightness and color series
+#  http://192.168.0.122/leds?num_leds=256 Set the number of LEDs for a new string
 #  http://192.168.0.122/exit  Exit server to that we can use REPL or WebREPL
 #  
 import random
@@ -28,7 +29,6 @@ import config as Config
 # from light_controller import LightController
 from pixel_controller import PixelController
 
-# NUM_LEDS = 472 # Number of LEDs in the strip in the family room.
 NUM_LEDS = 86
 NEO_DATA_PIN = 5  # Labeled G5 on board
 TEMP_DATA_PIN = 15 # Labeled G15
@@ -146,9 +146,15 @@ def set_series(series_name):
     if series_name in current_config['color_series']:
         current_config['series'] = series_name
 
+def set_led_count(count):
+    global current_config
+    if int(count) > 1:
+        current_config['num_leds'] = int(count)
+
 SET_LEDS = {
     "bright": set_brightness,
-    "series": set_series
+    "series": set_series,
+    "num_leds": set_led_count
 }
 
 
