@@ -16,7 +16,9 @@
 #  http://192.168.0.122/leds?bright=10  Set brightness
 #  http://192.168.0.122/leds?bright=20&series=winter  Set brightness and color series
 #  http://192.168.0.122/leds?num_leds=256 Set the number of LEDs for a new string
+#  http://192.168.0.122/config  Returns the current configuration JSON
 #  http://192.168.0.122/exit  Exit server to that we can use REPL or WebREPL
+#  
 #  
 import random
 import time
