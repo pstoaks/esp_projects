@@ -212,13 +212,14 @@ BLUE = (240.0, 100.0, 40.0)
 LT_BLUE = (230.0, 80, 80.0)
 PURPLE = (270.0, 80, 40.0)
 PINK = (301.0, 99, 60.0)
+OFF = (0.0, 0, 0)
 
 COLOR_SERIES = {
     "fall": (BROWN, FALL_RED, ORANGE, YELLOW, ORANGE),
     "christmas1": (GREEN, GREEN, RED, RED, WHITE),
-    "christmas2": (GREEN, GREEN, GREEN, RED, RED, RED),
+    "christmas2": (GREEN, GREEN, GREEN, GREEN, OFF, RED, RED, RED, RED, OFF),
     "multicolor": (GREEN, RED, BLUE, YELLOW, DK_GREEN, WHITE, ORANGE, PURPLE),
-    "multicolor2": (GREEN, RED, BLUE),
+    "multicolor2": (GREEN, GREEN, OFF, RED, RED, OFF, BLUE, BLUE, OFF),
     "winter": (WHITE, WHITE, BLUE, BLUE, LT_BLUE),
     "valentines": (PINK, WHITE, RED, WHITE),
     "valentines2": (PINK, PINK, PINK, PINK, PINK, PINK, PINK, PINK, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE, RED, RED, RED, RED, RED, RED, RED, RED, WHITE, WHITE, WHITE, WHITE, WHITE, WHITE),
